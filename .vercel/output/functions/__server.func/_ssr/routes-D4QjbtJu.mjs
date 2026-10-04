@@ -1,7 +1,7 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { K as require_react, b as require_jsx_runtime } from "../_libs/@tanstack/react-router+[...].mjs";
-import { a as Plus, i as Search, o as Crown, r as Trash2, t as X } from "../_libs/lucide-react.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-IqmeGOzs.js
+import { a as Minus, c as Check, i as Plus, o as Crown, r as Trash2, s as ChevronDown, t as X } from "../_libs/lucide-react.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-D4QjbtJu.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var gun = (name, tags, range, a, bs, s, ap, d) => ({
@@ -1370,6 +1370,10 @@ var UNITS = [
 		}]
 	}
 ];
+function unitCategory(unit, detachments) {
+	if (unit.id === "prosecutors" && detachments.includes("vigil")) return "Battleline";
+	return unit.category;
+}
 function copyLimit(unit, detachments = []) {
 	if (unit.maxCopies != null) return unit.maxCopies;
 	if (unit.battleline || unit.id === "prosecutors" && detachments.includes("vigil")) return 6;
@@ -1384,6 +1388,56 @@ function sizeOf(unit, models) {
 function costAt(size, copyIndex) {
 	if (copyIndex < size.costs.length) return size.costs[copyIndex];
 	return size.fourthPlus ?? size.costs[size.costs.length - 1];
+}
+/** One version ladder for the datasheet, then the extra cost of the chosen model count. */
+function squadCost(unit, models, copyIndex) {
+	const parts = costParts(unit, models, copyIndex);
+	if (!parts) return 0;
+	return parts.unit + parts.additionalUnit + parts.additionalModels;
+}
+function costParts(unit, models, copyIndex) {
+	const base = unit.sizes[0];
+	const size = sizeOf(unit, models);
+	if (!base || !size) return null;
+	const unitCost = base.costs[0] ?? 0;
+	return {
+		unit: unitCost,
+		additionalUnit: costAt(base, copyIndex) - unitCost,
+		additionalModels: (size.costs[0] ?? unitCost) - unitCost
+	};
+}
+function priceLine(unit, models, copyIndex, extras) {
+	const parts = costParts(unit, models, copyIndex);
+	if (!parts) return "";
+	const wargear = extras?.wargear ?? 0;
+	const enhancement = extras?.enhancement ?? 0;
+	const bits = [`${ordinal(copyIndex + 1)} unit ${parts.unit} pts`];
+	if (parts.additionalUnit) bits.push(`additional unit +${parts.additionalUnit} pts`);
+	if (parts.additionalModels) bits.push(`${models} models +${parts.additionalModels} pts`);
+	if (wargear) bits.push(`wargear +${wargear} pts`);
+	if (enhancement) bits.push(`enhancement +${enhancement} pts`);
+	const total = parts.unit + parts.additionalUnit + parts.additionalModels + wargear + enhancement;
+	return `${bits.join(" · ")} = ${total} pts`;
+}
+function costNote(unit, models, copies) {
+	const base = unit.sizes[0];
+	if (!base || copies < 1) return "";
+	const unitCost = base.costs[0] ?? 0;
+	const prices = Array.from({ length: copies }, (_, index) => costAt(base, index));
+	const parts = [];
+	let index = 0;
+	while (index < prices.length) {
+		let end = index;
+		while (end + 1 < prices.length && prices[end + 1] === prices[index]) end += 1;
+		const from = ordinal(index + 1);
+		const label = index === end ? `${from} unit` : `${from}–${ordinal(end + 1)} unit`;
+		const price = prices[index] ?? unitCost;
+		parts.push(price === unitCost ? `${label} ${unitCost} pts` : `${label} +${price - unitCost} pts`);
+		index = end + 1;
+	}
+	const additionalModels = (sizeOf(unit, models)?.costs[0] ?? unitCost) - unitCost;
+	if (additionalModels) parts.push(`${models} models +${additionalModels} pts`);
+	return parts.join(" · ");
 }
 function ordinal(n) {
 	const teen = n % 100;
@@ -1546,6 +1600,26 @@ function gearPoints(unitId, gear) {
 	}
 	return total;
 }
+function counted(label, models) {
+	return label.split(",").map((part) => {
+		const trimmed = part.trim();
+		const leading = /^(\d+)\s+(.+)$/.exec(trimmed);
+		const each = leading ? Number(leading[1]) : 1;
+		return `${leading ? leading[2] : trimmed} x${each * models}`;
+	}).join(", ");
+}
+function gearLineCounted(unitId, gear, models) {
+	const names = [];
+	for (const group of gearGroups(unitId)) {
+		const picked = gear?.[group.id];
+		const choice = group.optional ? picked ? group.choices.find((item) => item.id === picked) : void 0 : group.choices.find((item) => item.id === picked) ?? group.choices[0];
+		if (!choice) continue;
+		names.push(group.optional ? `${choice.name} x1` : counted(choice.name, models));
+	}
+	const fixed = armedWith(unitId);
+	if (fixed) names.push(counted(fixed, models));
+	return names.join(", ");
+}
 function gearLine(unitId, gear, includeFixed = true) {
 	const names = [];
 	for (const group of gearGroups(unitId)) {
@@ -1605,10 +1679,10 @@ function WeaponLine({ weapon }) {
 				children: tags.map((tag) => explainTag(tag) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 					type: "button",
 					onClick: () => setOpen(open === tag ? null : tag),
-					className: `min-h-11 rounded-lg border px-2 text-xs ${open === tag ? "border-gold text-gold" : "border-line text-muted"}`,
+					className: `rounded-lg border px-2 py-1 text-xs ${open === tag ? "border-gold text-gold" : "border-line text-muted"}`,
 					children: tag
 				}, tag) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-					className: "inline-flex min-h-11 items-center text-xs text-muted",
+					className: "inline-flex items-center text-xs text-muted",
 					children: tag
 				}, tag))
 			}) : null,
@@ -1618,13 +1692,16 @@ function WeaponLine({ weapon }) {
 			}) : null,
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("dl", {
 				className: "mt-2 grid grid-cols-6 gap-1 text-center",
-				children: cells.map(([label, value]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("dt", {
-					className: "text-[10px] tracking-wide text-gold uppercase",
-					children: label
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("dd", {
-					className: "text-xs",
-					children: value
-				})] }, label))
+				children: cells.map(([label, value]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "min-w-0",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("dt", {
+						className: "text-[10px] tracking-wide text-gold uppercase",
+						children: label
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("dd", {
+						className: "text-xs break-words",
+						children: value
+					})]
+				}, label))
 			})
 		]
 	});
@@ -1639,7 +1716,7 @@ function KeywordLine({ text }) {
 			children: parts.map((part, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [index > 0 ? ", " : "", part === "Fly" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 				type: "button",
 				onClick: () => setOpen((current) => !current),
-				className: "min-h-11 text-gold underline",
+				className: "text-gold underline",
 				children: "Fly"
 			}) : part] }, `${part}-${index}`))
 		}), open ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -1658,59 +1735,97 @@ function WeaponBlock({ title, weapons }) {
 		children: weapons.map((weapon) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WeaponLine, { weapon }, `${title}-${weapon.name}`))
 	})] });
 }
-function WargearPicker({ unitId, gear, scope, onGear }) {
+function WargearPicker({ unitId, gear, onGear }) {
 	const groups = gearGroups(unitId);
 	if (groups.length === 0) return null;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-		className: "mt-2 flex flex-col gap-1",
+		className: "mt-2 flex max-w-full min-w-0 flex-col items-start gap-1.5",
 		children: groups.map((group) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(GearGroupControl, {
-			scope,
 			group,
 			gear,
 			onGear
 		}, group.id))
 	});
 }
-function GearGroupControl({ scope, group, gear, onGear }) {
+function GearGroupControl({ group, gear, onGear }) {
 	if (group.optional) {
 		const item = group.choices[0];
 		if (!item) return null;
-		return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-			className: "flex min-h-11 items-center gap-2 text-sm",
+		const on = gear?.[group.id] === item.id;
+		return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+			type: "button",
+			"aria-pressed": on,
+			onClick: () => onGear(group.id, on ? "" : item.id),
+			className: `inline-flex max-w-full items-center gap-2 rounded-full border px-1 py-1 pr-3 text-left text-xs ${on ? "border-gold bg-gold/15 text-fg" : "border-dashed border-line text-muted"}`,
 			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-					type: "checkbox",
-					checked: gear?.[group.id] === item.id,
-					onChange: (event) => onGear(group.id, event.target.checked ? item.id : "")
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: `grid size-6 shrink-0 place-items-center rounded-full border ${on ? "border-gold bg-gold text-bg" : "border-line bg-bg text-muted"}`,
+					children: on ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Check, {
+						className: "size-3.5",
+						"aria-hidden": "true"
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, {
+						className: "size-3.5",
+						"aria-hidden": "true"
+					})
 				}),
-				item.name,
-				item.points ? ` +${item.points}` : ""
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: "min-w-0",
+					children: item.name
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: `shrink-0 rounded-full px-1.5 py-0.5 text-[10px] tracking-wide uppercase ${on ? "bg-gold text-bg" : "bg-raised text-muted"}`,
+					children: item.points ? `+${item.points} pts` : "Optional"
+				})
 			]
 		});
 	}
-	const selected = gear?.[group.id] ?? group.choices[0]?.id ?? "";
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-		className: "flex flex-col",
-		children: group.choices.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-			className: "flex min-h-11 items-center gap-2 text-sm",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-				type: "radio",
-				name: `${scope}-${group.id}`,
-				checked: selected === item.id,
-				onChange: () => onGear(group.id, item.id)
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [item.name, item.points ? ` +${item.points}` : ""] })]
-		}, item.id))
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WeaponMenu, {
+		group,
+		gear,
+		onGear
 	});
 }
-function DatasheetView({ unitId, unitName, gear, listOnly = false, onClose }) {
+function WeaponMenu({ group, gear, onGear }) {
+	const selected = gear?.[group.id] ?? group.choices[0]?.id ?? "";
+	const current = group.choices.find((item) => item.id === selected) ?? group.choices[0];
+	const label = current ? `${current.name}${current.points ? ` +${current.points} pts` : ""}` : "Weapon";
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "relative inline-flex max-w-full min-w-0",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+			className: "inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-lg border border-gold/50 bg-bg px-2 text-xs text-fg shadow-[inset_0_0_0_1px_rgba(0,0,0,0.15)]",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "min-w-0 truncate",
+				children: label
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronDown, {
+				className: "size-3.5 shrink-0 text-gold",
+				"aria-hidden": "true"
+			})]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+			"aria-label": "Weapon",
+			value: selected,
+			onChange: (event) => onGear(group.id, event.target.value),
+			className: "absolute inset-0 h-full w-full cursor-pointer opacity-0",
+			children: group.choices.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", {
+				value: item.id,
+				children: [item.name, item.points ? ` +${item.points} pts` : ""]
+			}, item.id))
+		})]
+	});
+}
+function DatasheetView({ unitId, unitName, gear, enhancement, listOnly = false, onClose }) {
 	const sheet = datasheetById(unitId);
 	const keywords = KEYWORDS[unitId];
 	(0, import_react.useEffect)(() => {
+		const previous = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
 		const onKey = (event) => {
 			if (event.key === "Escape") onClose();
 		};
 		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		return () => {
+			document.body.style.overflow = previous;
+			window.removeEventListener("keydown", onKey);
+		};
 	}, [onClose]);
 	if (!sheet) return null;
 	const stats = [
@@ -1727,13 +1842,13 @@ function DatasheetView({ unitId, unitName, gear, listOnly = false, onClose }) {
 	const melee = listOnly ? sheet.melee.filter((weapon) => weaponTaken(unitId, weapon.name, gear)) : sheet.melee;
 	const selectedKit = gearLine(unitId, gear);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-		className: "fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center",
+		className: "sheet-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70",
 		onClick: onClose,
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			role: "dialog",
 			"aria-modal": "true",
 			"aria-label": `${unitName} datasheet`,
-			className: "max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-line bg-surface px-4 py-4 sm:rounded-xl",
+			className: "sheet-panel max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-line bg-surface px-4 py-4",
 			onClick: (event) => event.stopPropagation(),
 			children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -1794,15 +1909,21 @@ function DatasheetView({ unitId, unitName, gear, listOnly = false, onClose }) {
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
 							className: "text-xs tracking-wide text-gold uppercase",
 							children: "Abilities"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ul", {
 							className: "mt-2 flex flex-col gap-3",
-							children: sheet.abilities.map((ability) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							children: [sheet.abilities.map((ability) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "text-sm font-medium",
 								children: ability.name
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "text-sm text-muted",
 								children: ability.rule
-							})] }, ability.name))
+							})] }, ability.name)), enhancement ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm font-medium",
+								children: enhancement.name
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm text-muted",
+								children: enhancement.rule
+							})] }) : null]
 						})] }),
 						keywords ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
@@ -1865,6 +1986,7 @@ var DETACHMENTS = [
 	{
 		id: "guardians",
 		name: "Guardians of the Throne",
+		dispositions: ["Priority Assets", "Purge the Foe"],
 		dp: 3,
 		rule: {
 			name: "Martial Mastery",
@@ -1912,6 +2034,7 @@ var DETACHMENTS = [
 	{
 		id: "aquilan",
 		name: "Aquilan Shield",
+		dispositions: ["Take and Hold"],
 		dp: 1,
 		unique: true,
 		rule: {
@@ -1946,6 +2069,7 @@ var DETACHMENTS = [
 	{
 		id: "auric",
 		name: "Auric Champions",
+		dispositions: ["Purge the Foe"],
 		dp: 1,
 		rule: {
 			name: "Assemblage of Might",
@@ -1966,6 +2090,7 @@ var DETACHMENTS = [
 	{
 		id: "dread-host",
 		name: "Dread Host",
+		dispositions: ["Purge the Foe"],
 		dp: 1,
 		unique: true,
 		rule: {
@@ -2000,6 +2125,7 @@ var DETACHMENTS = [
 	{
 		id: "emissaries",
 		name: "Emissaries Imperatus",
+		dispositions: ["Priority Assets"],
 		dp: 1,
 		unique: true,
 		rule: {
@@ -2034,6 +2160,7 @@ var DETACHMENTS = [
 	{
 		id: "chosen",
 		name: "Emperor's Chosen",
+		dispositions: ["Priority Assets"],
 		dp: 1,
 		unique: true,
 		rule: {
@@ -2068,6 +2195,7 @@ var DETACHMENTS = [
 	{
 		id: "grav",
 		name: "Grav-Assault Force",
+		dispositions: ["Reconnaissance"],
 		dp: 1,
 		rule: {
 			name: "Flare Shields",
@@ -2097,6 +2225,7 @@ var DETACHMENTS = [
 	{
 		id: "companions",
 		name: "Honoured Companions",
+		dispositions: ["Take and Hold"],
 		dp: 1,
 		rule: {
 			name: "Companion’s Watch",
@@ -2126,6 +2255,7 @@ var DETACHMENTS = [
 	{
 		id: "lions",
 		name: "Lions of the Emperor",
+		dispositions: ["Disruption"],
 		dp: 1,
 		rule: {
 			name: "On Gilded Wings",
@@ -2155,6 +2285,7 @@ var DETACHMENTS = [
 	{
 		id: "moritoi",
 		name: "Might of the Moritoi",
+		dispositions: ["Take and Hold"],
 		dp: 1,
 		rule: {
 			name: "Moritoi Ancients",
@@ -2184,6 +2315,7 @@ var DETACHMENTS = [
 	{
 		id: "vigil",
 		name: "Null Maiden Vigil",
+		dispositions: ["Disruption"],
 		dp: 1,
 		rule: {
 			name: "Silent Sisterhood",
@@ -2213,6 +2345,7 @@ var DETACHMENTS = [
 	{
 		id: "shadowkeepers",
 		name: "Shadowkeepers",
+		dispositions: ["Purge the Foe"],
 		dp: 1,
 		unique: true,
 		rule: {
@@ -2247,6 +2380,7 @@ var DETACHMENTS = [
 	{
 		id: "solar",
 		name: "Solar Watch",
+		dispositions: ["Reconnaissance"],
 		dp: 1,
 		unique: true,
 		rule: {
@@ -2292,7 +2426,7 @@ var ENHANCEMENTS = [
 		id: "eagles-eye",
 		name: "Eagle's Eye",
 		detachment: "guardians",
-		points: 25,
+		points: 30,
 		rule: "Adeptus Custodes model only. This model has +1 Wound. Once per battle, per army, when attacks are allocated to this model, it can have a 3+ invulnerable save.",
 		targets: CUSTODES
 	},
@@ -2300,7 +2434,7 @@ var ENHANCEMENTS = [
 		id: "castellan",
 		name: "Castellan's Mark",
 		detachment: "guardians",
-		points: 30,
+		points: 25,
 		rule: "Adeptus Custodes model only. After both players have deployed, you can redeploy up to three friendly Adeptus Custodes units, including into Strategic Reserves, regardless of how many units are already in Strategic Reserves.",
 		targets: CUSTODES
 	},
@@ -2364,7 +2498,7 @@ var ENHANCEMENTS = [
 		id: "flawless",
 		name: "Flawless Bladework",
 		detachment: "dread-host",
-		points: 25,
+		points: 15,
 		rule: "Adeptus Custodes model only. Its melee attacks have [Sustained Hits 1].",
 		targets: CUSTODES
 	},
@@ -2388,7 +2522,7 @@ var ENHANCEMENTS = [
 		id: "armouries",
 		name: "From the Hall of Armouries",
 		detachment: "chosen",
-		points: 20,
+		points: 15,
 		rule: "Adeptus Custodes model only. Its melee attacks have [Devastating Wounds].",
 		targets: CUSTODES
 	},
@@ -2422,7 +2556,7 @@ var ENHANCEMENTS = [
 		id: "arae",
 		name: "Arae-Shrike",
 		detachment: "companions",
-		points: 25,
+		points: 20,
 		rule: "Adeptus Custodes Infantry model only. Enemy units selected to make an ingress move cannot be set up within 12\" of this unit.",
 		targets: INFANTRY_CHARACTERS
 	},
@@ -2455,7 +2589,7 @@ var ENHANCEMENTS = [
 		id: "augury",
 		name: "Augury Uplink",
 		detachment: "moritoi",
-		points: 15,
+		points: 30,
 		upgrade: true,
 		once: true,
 		rule: "Upgrade, one per army, for an Adeptus Custodes Dreadnought model only. It has Feel No Pain 5+.",
@@ -2491,7 +2625,7 @@ var ENHANCEMENTS = [
 		id: "warding",
 		name: "Genalchemic Warding",
 		detachment: "shadowkeepers",
-		points: 20,
+		points: 30,
 		rule: "Adeptus Custodes model only. It has Feel No Pain 5+.",
 		targets: CUSTODES
 	},
@@ -2499,7 +2633,7 @@ var ENHANCEMENTS = [
 		id: "destroyer",
 		name: "Unstoppable Destroyer",
 		detachment: "shadowkeepers",
-		points: 35,
+		points: 25,
 		rule: "Adeptus Custodes Infantry model only. When selected to pile in or consolidate, it can move up to 4\", and you can choose any consolidation mode regardless of Before Moving restrictions.",
 		targets: INFANTRY_CHARACTERS
 	},
@@ -2507,7 +2641,7 @@ var ENHANCEMENTS = [
 		id: "auric-eagle",
 		name: "Auric Eagle",
 		detachment: "solar",
-		points: 10,
+		points: 15,
 		upgrade: true,
 		rule: "Upgrade for an Adeptus Custodes Infantry or Mounted unit only, excluding Terminator units. It has +1 to advance rolls and charge rolls.",
 		targets: EAGLE
@@ -2542,21 +2676,26 @@ function repeatable(enhancement) {
 function DetachmentSheet({ ids, onClose }) {
 	const detachments = ids.map((id) => detachmentById(id)).filter((item) => item != null);
 	(0, import_react.useEffect)(() => {
+		const previous = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
 		const onKey = (event) => {
 			if (event.key === "Escape") onClose();
 		};
 		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		return () => {
+			document.body.style.overflow = previous;
+			window.removeEventListener("keydown", onKey);
+		};
 	}, [onClose]);
 	if (detachments.length === 0) return null;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-		className: "fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center",
+		className: "sheet-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70",
 		onClick: onClose,
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			role: "dialog",
 			"aria-modal": "true",
 			"aria-label": "Detachment rules",
-			className: "max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-line bg-surface px-4 py-4 sm:rounded-xl",
+			className: "sheet-panel max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-line bg-surface px-4 py-4",
 			onClick: (event) => event.stopPropagation(),
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "flex items-start justify-between gap-3",
@@ -2589,6 +2728,10 @@ function DetachmentSheet({ ids, onClose }) {
 									detachment.unique ? " · Shield Host" : ""
 								]
 							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "text-sm",
+								children: ["Force disposition: ", detachment.dispositions.join(", ")]
+							}),
 							detachment.rule ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
 								className: "text-xs tracking-wide text-gold uppercase",
 								children: detachment.rule.name
@@ -2618,6 +2761,7 @@ function DetachmentSheet({ ids, onClose }) {
 											enhancement.name,
 											" · ",
 											enhancement.points,
+											" pts",
 											enhancement.once ? " · one per army" : enhancement.upgrade ? " · upgrade" : ""
 										]
 									}),
@@ -2842,21 +2986,26 @@ function keywordsFor(unitIds) {
 }
 function CoreRules({ onClose }) {
 	(0, import_react.useEffect)(() => {
+		const previous = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
 		const onKey = (event) => {
 			if (event.key === "Escape") onClose();
 		};
 		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		return () => {
+			document.body.style.overflow = previous;
+			window.removeEventListener("keydown", onKey);
+		};
 	}, [onClose]);
 	const abilities = WEAPON_ABILITIES.filter((ability) => ability.key !== "pistol");
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-		className: "fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center",
+		className: "sheet-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70",
 		onClick: onClose,
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			role: "dialog",
 			"aria-modal": "true",
 			"aria-label": "Core rules",
-			className: "max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-line bg-surface px-4 py-4 sm:rounded-xl",
+			className: "sheet-panel max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-line bg-surface px-4 py-4",
 			onClick: (event) => event.stopPropagation(),
 			children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -2969,6 +3118,127 @@ function CoreRules({ onClose }) {
 		})
 	});
 }
+var THEMES = [
+	{
+		id: "auramite",
+		name: "Auramite",
+		swatch: "#d4b36a"
+	},
+	{
+		id: "marble",
+		name: "Marble",
+		swatch: "#8a6a2f"
+	},
+	{
+		id: "night",
+		name: "Night",
+		swatch: "#7eb0d6"
+	},
+	{
+		id: "amethyst",
+		name: "Amethyst",
+		swatch: "#c9a46a"
+	}
+];
+var THEME_KEY = "ttt-theme";
+var MOTION_KEY = "ttt-motion";
+function loadTheme() {
+	const saved = localStorage.getItem(THEME_KEY);
+	return THEMES.some((theme) => theme.id === saved) ? saved : "auramite";
+}
+function loadReduceMotion() {
+	const saved = localStorage.getItem(MOTION_KEY);
+	if (saved === "on") return true;
+	if (saved === "off") return false;
+	return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+function applySettings(theme, reduceMotion) {
+	const root = document.documentElement;
+	if (theme === "auramite") root.removeAttribute("data-theme");
+	else root.dataset.theme = theme;
+	root.dataset.motion = reduceMotion ? "on" : "off";
+	localStorage.setItem(THEME_KEY, theme);
+	localStorage.setItem(MOTION_KEY, reduceMotion ? "on" : "off");
+}
+function Settings({ theme, reduceMotion, onTheme, onMotion, onClose }) {
+	(0, import_react.useEffect)(() => {
+		const previous = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		const onKey = (event) => {
+			if (event.key === "Escape") onClose();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => {
+			document.body.style.overflow = previous;
+			window.removeEventListener("keydown", onKey);
+		};
+	}, [onClose]);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		className: "sheet-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70",
+		onClick: onClose,
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			role: "dialog",
+			"aria-modal": "true",
+			"aria-label": "Settings",
+			className: "sheet-panel max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-line bg-surface px-4 py-4",
+			onClick: (event) => event.stopPropagation(),
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex items-start justify-between gap-3",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "font-display text-2xl",
+						children: "Settings"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						"aria-label": "Close settings",
+						onClick: onClose,
+						className: "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-5" })
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+					className: "mt-4",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+						className: "text-xs tracking-wide text-gold uppercase",
+						children: "Motion"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						type: "button",
+						role: "switch",
+						"aria-checked": reduceMotion,
+						onClick: () => onMotion(!reduceMotion),
+						className: "mt-2 flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-line px-3 text-left text-sm",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: ["Reduce motion", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: "mt-0.5 block text-xs text-muted",
+							children: "Turn this off to keep button press animations."
+						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: `shrink-0 text-xs ${reduceMotion ? "text-gold" : "text-muted"}`,
+							children: reduceMotion ? "On" : "Off"
+						})]
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+					className: "mt-5",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+						className: "text-xs tracking-wide text-gold uppercase",
+						children: "Colors"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-2 grid grid-cols-2 gap-2",
+						children: THEMES.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+							type: "button",
+							"aria-pressed": theme === item.id,
+							onClick: () => onTheme(item.id),
+							className: `flex min-h-11 items-center gap-2 rounded-lg border px-3 text-left text-sm ${theme === item.id ? "border-gold text-fg" : "border-line text-muted"}`,
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "size-4 shrink-0 rounded-full border border-line",
+								style: { background: item.swatch }
+							}), item.name]
+						}, item.id))
+					})]
+				})
+			]
+		})
+	});
+}
 var TABS = [
 	{
 		id: "list",
@@ -2977,6 +3247,10 @@ var TABS = [
 	{
 		id: "army",
 		label: "Army"
+	},
+	{
+		id: "core",
+		label: "Core"
 	},
 	{
 		id: "detachments",
@@ -3004,138 +3278,175 @@ function tableUnits(entries) {
 		};
 	});
 }
-function PlayView({ name, total, limit, detachments, entries, onBack }) {
+function PlayView({ name, total, limit, detachments, mainDisposition, dispositionChoices, onMainDisposition, entries, onBack, onHome }) {
 	const [tab, setTab] = (0, import_react.useState)("list");
 	const [phase, setPhase] = (0, import_react.useState)("all");
+	const [listFilter, setListFilter] = (0, import_react.useState)("all");
 	const [sheetEntry, setSheetEntry] = (0, import_react.useState)(null);
 	const units = tableUnits(entries);
 	const sheets = detachments.map((id) => detachmentById(id)).filter((item) => item != null);
 	const stratagems = stratagemsFor(detachments).filter((stratagem) => phase === "all" ? true : phase === "any" ? stratagem.phases.includes("any") : stratagem.phases.includes(phase) || stratagem.phases.includes("any"));
 	const attachedBodies = new Set(entries.flatMap((entry) => entry.attachedTo ? [entry.attachedTo] : []));
+	const shown = listFilter === "enhancements" ? entries.filter((entry) => entry.enhancement) : entries;
+	const openEntry = entries.find((entry) => entry.id === sheetEntry);
+	const openEnhancement = openEntry?.enhancement ? ENHANCEMENTS.find((enhancement) => enhancement.name === openEntry.enhancement) : void 0;
+	const main = mainDisposition && dispositionChoices.includes(mainDisposition) ? mainDisposition : dispositionChoices.length === 1 ? dispositionChoices[0] : void 0;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("main", {
-		className: "mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 px-4 py-5 sm:px-6",
+		className: "page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 px-4 py-5",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
-				className: "sticky top-0 z-10 -mx-4 border-b border-line bg-bg px-4 pb-3 sm:-mx-6 sm:px-6",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "flex items-start justify-between gap-3 pt-1",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "min-w-0",
+				className: "sticky top-0 z-10 -mx-4 border-b border-line bg-bg px-4 pb-3",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex items-center justify-between gap-3 pt-1",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							onClick: onHome,
+							className: "min-h-11 shrink-0 rounded-lg border border-line px-3 py-2 text-sm",
+							children: "Home"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							onClick: onBack,
+							className: "min-h-11 shrink-0 rounded-lg border border-line px-3 py-2 text-sm",
+							children: "Back"
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "min-w-0 pt-3",
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "text-xs font-medium tracking-[0.18em] text-gold uppercase",
+								className: "text-xs font-medium tracking-wide text-gold uppercase",
 								children: "Playing"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-								className: "truncate font-display text-3xl",
+								className: "truncate font-display text-2xl",
 								children: name
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 								className: "text-sm text-muted",
 								children: [
 									total,
-									" / ",
+									" pts / ",
 									limit,
+									" pts",
 									sheets.length ? ` · ${sheets.map((sheet) => sheet.name).join(", ")}` : ""
 								]
-							})
-						]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						type: "button",
-						onClick: onBack,
-						className: "min-h-11 shrink-0 rounded-lg border border-line px-3 py-2 text-sm",
-						children: "Back"
-					})]
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "mt-3 flex flex-wrap gap-2",
-					children: TABS.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						type: "button",
-						onClick: () => setTab(item.id),
-						className: `min-h-11 rounded-lg border px-3 py-2 text-sm ${tab === item.id ? "border-gold bg-gold text-bg" : "border-line bg-surface"}`,
-						children: item.label
-					}, item.id))
-				})]
-			}),
-			tab === "list" ? entries.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				className: "text-sm text-muted",
-				children: "Add a unit."
-			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ol", {
-				className: "flex flex-col gap-2",
-				children: entries.map((entry) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-					className: `rounded-lg border border-line bg-surface px-3 py-3 ${attachedBodies.has(entry.id) ? "ml-4 border-l-gold" : ""}`,
-					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "flex items-baseline justify-between gap-3",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-								className: "text-sm font-medium",
-								children: [
-									entry.name,
-									entry.models > 1 ? ` x${entry.models}` : "",
-									entry.warlord ? " (Warlord)" : "",
-									entry.enhancement ? ` (${entry.enhancement})` : ""
-								]
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "text-sm text-gold",
-								children: entry.cost
-							})]
-						}),
-						entry.gearText ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "mt-1 text-sm text-muted",
-							children: entry.gearText
-						}) : null,
-						datasheetById(entry.unitId) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							type: "button",
-							onClick: () => setSheetEntry(entry.id),
-							className: "mt-1 inline-flex min-h-11 items-center text-xs text-gold",
-							children: "Datasheet"
-						}) : null
-					]
-				}, entry.id))
-			}) : null,
-			tab === "army" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "flex flex-col gap-6",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
-						className: "flex flex-col gap-4",
-						children: ARMY_RULES.map((rule) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "text-sm font-medium",
-								children: rule.name
 							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							main ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 								className: "text-sm text-muted",
-								children: rule.rule
-							}),
-							rule.parts ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
-								className: "mt-2 flex flex-col gap-2 border-l border-line pl-3",
-								children: rule.parts.map((part) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm font-medium",
-									children: part.name
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm text-muted",
-									children: part.rule
-								})] }, part.name))
+								children: ["Main disposition: ", main]
 							}) : null
-						] }, rule.name))
+						]
 					}),
-					sheets.some((sheet) => sheet.katah) ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-						className: "text-xs tracking-wide text-gold uppercase",
-						children: "Favoured Ka’tah"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
-						className: "mt-2 flex flex-col gap-3",
-						children: sheets.flatMap((sheet) => sheet.katah ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-							className: "text-sm font-medium",
-							children: [
-								sheet.katah.name,
-								" · ",
-								sheet.name
-							]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1",
+						children: TABS.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							onClick: () => setTab(item.id),
+							className: `min-h-11 shrink-0 rounded-lg border px-3 py-2 text-sm ${tab === item.id ? "border-gold bg-gold text-bg" : "border-line bg-surface"}`,
+							children: item.label
+						}, item.id))
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "section-open",
+				children: [
+					tab === "list" ? entries.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-sm text-muted",
+						children: "Add a unit."
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex flex-col gap-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								type: "button",
+								onClick: () => setListFilter("all"),
+								className: `min-h-11 rounded-lg border px-3 text-sm ${listFilter === "all" ? "border-gold text-gold" : "border-line text-muted"}`,
+								children: "All"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								type: "button",
+								onClick: () => setListFilter("enhancements"),
+								className: `min-h-11 rounded-lg border px-3 text-sm ${listFilter === "enhancements" ? "border-gold text-gold" : "border-line text-muted"}`,
+								children: "Enhancements"
+							})]
+						}), shown.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "text-sm text-muted",
-							children: sheet.katah.effect
-						})] }, sheet.id) : [])
-					})] }) : null,
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							children: "No enhancements selected."
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ol", {
+							className: "flex flex-col gap-2",
+							children: shown.map((entry) => {
+								const enhancement = entry.enhancement ? ENHANCEMENTS.find((item) => item.name === entry.enhancement) : void 0;
+								return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+									className: `rounded-lg border border-line bg-surface px-3 py-3 ${attachedBodies.has(entry.id) ? "ml-4 border-l-gold" : ""}`,
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex items-baseline justify-between gap-3",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+												className: "min-w-0 text-sm font-medium break-words",
+												children: [
+													listFilter === "enhancements" && enhancement ? enhancement.name : entry.name,
+													listFilter === "all" && entry.models > 1 ? ` x${entry.models}` : "",
+													listFilter === "all" && entry.warlord ? " (Warlord)" : "",
+													listFilter === "all" && entry.enhancement ? ` (${entry.enhancement})` : ""
+												]
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "shrink-0 text-sm text-gold",
+												children: listFilter === "enhancements" && enhancement ? `+${enhancement.points} pts` : `${entry.cost} pts`
+											})]
+										}),
+										listFilter === "enhancements" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+											className: "mt-1 text-sm",
+											children: [
+												entry.name,
+												entry.models > 1 ? ` x${entry.models}` : "",
+												entry.warlord ? " (Warlord)" : ""
+											]
+										}), enhancement ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 text-sm text-muted",
+											children: enhancement.rule
+										}) : null] }) : entry.gearText ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 text-sm text-muted",
+											children: entry.gearText
+										}) : null,
+										datasheetById(entry.unitId) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											type: "button",
+											onClick: () => setSheetEntry(entry.id),
+											className: "mt-1 inline-flex min-h-11 items-center text-xs text-gold",
+											children: "Datasheet"
+										}) : null
+									]
+								}, entry.id);
+							})
+						})]
+					}) : null,
+					tab === "army" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "flex flex-col gap-6",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+							className: "flex flex-col gap-4",
+							children: ARMY_RULES.map((rule) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-sm font-medium",
+									children: rule.name
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-sm text-muted",
+									children: rule.rule
+								}),
+								rule.parts ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+									className: "mt-2 flex flex-col gap-2 border-l border-line pl-3",
+									children: rule.parts.map((part) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-sm font-medium",
+										children: part.name
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-sm text-muted",
+										children: part.rule
+									})] }, part.name))
+								}) : null
+							] }, rule.name))
+						})
+					}) : null,
+					tab === "core" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 						className: "text-xs tracking-wide text-gold uppercase",
 						children: "Rules updates"
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
@@ -3144,145 +3455,172 @@ function PlayView({ name, total, limit, detachments, entries, onBack }) {
 							className: "text-sm text-muted",
 							children: rule
 						}, rule))
-					})] })
-				]
-			}) : null,
-			tab === "detachments" ? sheets.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				className: "text-sm text-muted",
-				children: "No detachments selected."
-			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "flex flex-col gap-8",
-				children: sheets.map((sheet) => {
-					const taken = enhancementsFor(sheet.id).filter((enhancement) => entries.some((entry) => entry.enhancement === enhancement.name));
-					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
-						className: "flex flex-col gap-3",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-								className: "font-display text-2xl",
-								children: sheet.name
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-								className: "text-xs text-muted",
-								children: [
-									sheet.dp,
-									" DP",
-									sheet.unique ? " · Shield Host" : ""
-								]
-							}),
-							sheet.rule ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
-								className: "text-xs tracking-wide text-gold uppercase",
-								children: sheet.rule.name
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-1 text-sm",
-								children: sheet.rule.text
-							})] }) : null,
-							sheet.katah ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
-								className: "text-xs tracking-wide text-gold uppercase",
-								children: ["Favoured Ka’tah · ", sheet.katah.name]
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-1 text-sm",
-								children: sheet.katah.effect
-							})] }) : null,
-							taken.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
-								className: "text-xs tracking-wide text-gold uppercase",
-								children: "In this list"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
-								className: "mt-2 flex flex-col gap-2",
-								children: taken.map((enhancement) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm font-medium",
-									children: enhancement.name
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm text-muted",
-									children: enhancement.rule
-								})] }, enhancement.id))
-							})] }) : null
-						]
-					}, sheet.id);
-				})
-			}) : null,
-			tab === "stratagems" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "flex flex-col gap-4",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					})] }) : null,
+					tab === "detachments" ? sheets.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "text-sm text-muted",
-						children: USING_STRATAGEMS
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "flex flex-wrap gap-2",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							type: "button",
-							onClick: () => setPhase("all"),
-							className: `min-h-11 rounded-lg border px-3 py-2 text-sm ${phase === "all" ? "border-gold text-gold" : "border-line text-muted"}`,
-							children: "All"
-						}), PHASES.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							type: "button",
-							onClick: () => setPhase(item.id),
-							className: `min-h-11 rounded-lg border px-3 py-2 text-sm ${phase === item.id ? "border-gold text-gold" : "border-line text-muted"}`,
-							children: item.label
-						}, item.id))]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
-						className: "flex flex-col gap-3",
-						children: stratagems.map((stratagem) => {
-							const matches = units.filter((unit) => canTarget(stratagem, unit));
-							const phaseLabels = stratagem.phases.map((id) => PHASES.find((item) => item.id === id)?.label ?? id);
-							return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-								className: "rounded-lg border border-line bg-surface px-3 py-3",
+						children: "No detachments selected."
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex flex-col gap-8",
+						children: [dispositionChoices.length > 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+							className: "flex w-fit max-w-full flex-col items-start text-xs text-muted",
+							children: ["Main disposition", /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
+								"aria-label": "Main disposition",
+								value: main ?? "",
+								onChange: (event) => onMainDisposition(event.target.value),
+								className: "weapon-select mt-1 h-8 max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+									value: "",
+									disabled: true,
+									children: "Choose"
+								}), dispositionChoices.map((name) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+									value: name,
+									children: name
+								}, name))]
+							})]
+						}) : null, sheets.map((sheet) => {
+							const taken = enhancementsFor(sheet.id).filter((enhancement) => entries.some((entry) => entry.enhancement === enhancement.name));
+							return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
+								className: "flex flex-col gap-3",
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "flex items-baseline justify-between gap-3",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											className: "text-sm font-medium",
-											children: stratagem.name
-										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-											className: "shrink-0 text-sm text-gold",
-											children: [stratagem.cp, " CP"]
-										})]
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+										className: "font-display text-2xl",
+										children: sheet.name
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-										className: "text-xs text-gold",
+										className: "text-xs text-muted",
 										children: [
-											stratagem.source,
-											" · ",
-											phaseLabels.join(", ")
+											sheet.dp,
+											" DP",
+											sheet.unique ? " · Shield Host" : ""
 										]
 									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mt-2 text-sm",
-										children: stratagem.when
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mt-1 text-sm text-muted",
-										children: stratagem.effect
-									}),
-									stratagem.restrictions ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mt-1 text-xs text-muted",
-										children: stratagem.restrictions
-									}) : null,
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mt-3 text-xs tracking-wide text-muted uppercase",
-										children: "Can target"
-									}),
-									matches.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "text-sm text-muted",
-										children: "No unit in this list."
-									}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
-										className: "mt-1",
-										children: matches.map((unit) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", {
-											className: "text-sm",
-											children: unit.label
-										}, unit.key))
-									})
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+										className: "text-xs tracking-wide text-gold uppercase",
+										children: "Force disposition"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-sm",
+										children: sheet.dispositions.map((name) => name === main ? `${name} (Main)` : name).join(", ")
+									})] }),
+									sheet.rule ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+										className: "text-xs tracking-wide text-gold uppercase",
+										children: sheet.rule.name
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-sm",
+										children: sheet.rule.text
+									})] }) : null,
+									sheet.katah ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
+										className: "text-xs tracking-wide text-gold uppercase",
+										children: ["Favoured Ka’tah · ", sheet.katah.name]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-sm",
+										children: sheet.katah.effect
+									})] }) : null,
+									taken.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+										className: "text-xs tracking-wide text-gold uppercase",
+										children: "In this list"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+										className: "mt-2 flex flex-col gap-2",
+										children: taken.map((enhancement) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-sm font-medium",
+											children: enhancement.name
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-sm text-muted",
+											children: enhancement.rule
+										})] }, enhancement.id))
+									})] }) : null
 								]
-							}, stratagem.id);
-						})
-					})
+							}, sheet.id);
+						})]
+					}) : null,
+					tab === "stratagems" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex flex-col gap-4",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm text-muted",
+								children: USING_STRATAGEMS
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "-mx-4 flex gap-2 overflow-x-auto px-4 pb-1",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => setPhase("all"),
+									className: `min-h-11 shrink-0 rounded-lg border px-3 py-2 text-sm ${phase === "all" ? "border-gold text-gold" : "border-line text-muted"}`,
+									children: "All"
+								}), PHASES.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => setPhase(item.id),
+									className: `min-h-11 shrink-0 rounded-lg border px-3 py-2 text-sm ${phase === item.id ? "border-gold text-gold" : "border-line text-muted"}`,
+									children: item.label
+								}, item.id))]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+								className: "flex flex-col gap-3",
+								children: stratagems.map((stratagem) => {
+									const matches = units.filter((unit) => canTarget(stratagem, unit));
+									const phaseLabels = stratagem.phases.map((id) => PHASES.find((item) => item.id === id)?.label ?? id);
+									return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+										className: "rounded-lg border border-line bg-surface px-3 py-3",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "flex items-baseline justify-between gap-3",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+													className: "min-w-0 text-sm font-medium break-words",
+													children: stratagem.name
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+													className: "shrink-0 text-sm text-gold",
+													children: [stratagem.cp, " CP"]
+												})]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+												className: "text-xs text-gold",
+												children: [
+													stratagem.source,
+													" · ",
+													phaseLabels.join(", ")
+												]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "mt-2 text-sm",
+												children: stratagem.when
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "mt-1 text-sm text-muted",
+												children: stratagem.effect
+											}),
+											stratagem.restrictions ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "mt-1 text-xs text-muted",
+												children: stratagem.restrictions
+											}) : null,
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "mt-3 text-xs tracking-wide text-muted uppercase",
+												children: "Can target"
+											}),
+											matches.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "text-sm text-muted",
+												children: "No unit in this list."
+											}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+												className: "mt-1",
+												children: matches.map((unit) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", {
+													className: "text-sm",
+													children: unit.label
+												}, unit.key))
+											})
+										]
+									}, stratagem.id);
+								})
+							})
+						]
+					}) : null
 				]
-			}) : null,
-			sheetEntry ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DatasheetView, {
-				unitId: entries.find((entry) => entry.id === sheetEntry)?.unitId ?? "",
-				unitName: entries.find((entry) => entry.id === sheetEntry)?.name ?? "Datasheet",
-				gear: entries.find((entry) => entry.id === sheetEntry)?.gear,
+			}, tab),
+			openEntry ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DatasheetView, {
+				unitId: openEntry.unitId,
+				unitName: openEntry.name,
+				gear: openEntry.gear,
+				enhancement: openEnhancement ? {
+					name: openEnhancement.name,
+					rule: openEnhancement.rule
+				} : void 0,
 				listOnly: true,
 				onClose: () => setSheetEntry(null)
 			}) : null
@@ -3300,31 +3638,39 @@ var EMPTY = {
 };
 function price(entries) {
 	const seen = /* @__PURE__ */ new Map();
-	const priced = [];
-	for (const entry of entries) {
+	const costById = /* @__PURE__ */ new Map();
+	const ordered = [...entries].sort((left, right) => (left.addedAt ?? 0) - (right.addedAt ?? 0) || left.id.localeCompare(right.id));
+	for (const entry of ordered) {
 		const unit = unitById(entry.unitId);
 		const size = unit ? sizeOf(unit, entry.models) : void 0;
 		if (!unit || !size) continue;
-		const key = `${entry.unitId}:${entry.models}`;
+		const key = entry.unitId;
 		const copyIndex = seen.get(key) ?? 0;
 		seen.set(key, copyIndex + 1);
 		const bonus = entry.enhancementId ? enhancementById(entry.enhancementId)?.points ?? 0 : 0;
-		priced.push({
-			...entry,
-			unit,
-			size,
+		costById.set(entry.id, {
 			copy: copyIndex + 1,
-			cost: costAt(size, copyIndex) + bonus + gearPoints(entry.unitId, entry.gear)
+			cost: squadCost(unit, entry.models, copyIndex) + bonus + gearPoints(entry.unitId, entry.gear)
 		});
 	}
-	return priced;
+	return entries.flatMap((entry) => {
+		const priced = costById.get(entry.id);
+		const unit = unitById(entry.unitId);
+		const size = unit ? sizeOf(unit, entry.models) : void 0;
+		if (!priced || !unit || !size) return [];
+		return [{
+			...entry,
+			...priced,
+			unit,
+			size
+		}];
+	});
 }
 function nextCost(unit, models, entries, detachments) {
-	if (entries.filter((entry) => entry.unitId === unit.id).length >= copyLimit(unit, detachments)) return null;
-	const taken = entries.filter((entry) => entry.unitId === unit.id && entry.models === models).length;
-	const size = sizeOf(unit, models);
-	if (!size) return null;
-	return costAt(size, taken);
+	const ofUnit = entries.filter((entry) => entry.unitId === unit.id).length;
+	if (ofUnit >= copyLimit(unit, detachments)) return null;
+	if (!sizeOf(unit, models)) return null;
+	return squadCost(unit, models, ofUnit);
 }
 function partnerEntry(entry, entries) {
 	if (entry.attachedTo) return entries.find((candidate) => candidate.id === entry.attachedTo);
@@ -3351,15 +3697,18 @@ function arrange(entries, warlordId) {
 	return result;
 }
 function settle(roster) {
+	const ordered = [...roster.entries].sort((left, right) => (left.addedAt ?? 0) - (right.addedAt ?? 0) || left.id.localeCompare(right.id));
 	const counts = /* @__PURE__ */ new Map();
-	const kept = roster.entries.filter((entry) => {
+	const keepIds = /* @__PURE__ */ new Set();
+	for (const entry of ordered) {
 		const unit = unitById(entry.unitId);
-		if (!unit) return false;
+		if (!unit) continue;
 		const count = counts.get(entry.unitId) ?? 0;
-		if (count >= copyLimit(unit, roster.detachments)) return false;
+		if (count >= copyLimit(unit, roster.detachments)) continue;
 		counts.set(entry.unitId, count + 1);
-		return true;
-	});
+		keepIds.add(entry.id);
+	}
+	const kept = roster.entries.filter((entry) => keepIds.has(entry.id));
 	const ids = new Set(kept.map((entry) => entry.id));
 	const entries = kept.map((entry) => entry.attachedTo && !ids.has(entry.attachedTo) ? {
 		...entry,
@@ -3370,8 +3719,19 @@ function settle(roster) {
 	return {
 		...roster,
 		warlordId,
+		mainDisposition: cleanMainDisposition(roster.detachments, roster.mainDisposition),
 		entries: arrange(entries, warlordId)
 	};
+}
+function dispositionChoices(detachments) {
+	const choices = [];
+	for (const id of detachments) for (const name of detachmentById(id)?.dispositions ?? []) if (!choices.includes(name)) choices.push(name);
+	return choices;
+}
+function cleanMainDisposition(detachments, value) {
+	const choices = dispositionChoices(detachments);
+	if (value && choices.includes(value)) return value;
+	return choices.length === 1 ? choices[0] : void 0;
 }
 function enhancementSlots(entries, exceptId) {
 	return new Set(entries.filter((entry) => entry.id !== exceptId && entry.enhancementId).map((entry) => entry.enhancementId));
@@ -3402,29 +3762,17 @@ function legalDetachments(ids) {
 	}
 	return kept;
 }
-function ladder(unit, size, detachments) {
-	const costs = Array.from({ length: copyLimit(unit, detachments) }, (_, index) => costAt(size, index));
-	const parts = [];
-	let index = 0;
-	while (index < costs.length) {
-		let end = index;
-		while (end + 1 < costs.length && costs[end + 1] === costs[index]) end += 1;
-		const label = index === end ? ordinal(index + 1) : `${ordinal(index + 1)}–${ordinal(end + 1)}`;
-		parts.push(`${label} ${costs[index]}`);
-		index = end + 1;
-	}
-	return parts.join(" · ");
-}
 function rosterFrom(parsed) {
 	if (!parsed) return EMPTY;
-	const entries = Array.isArray(parsed.entries) ? parsed.entries.flatMap((entry) => {
+	const entries = Array.isArray(parsed.entries) ? parsed.entries.flatMap((entry, index) => {
 		if (!entry || typeof entry.id !== "string" || typeof entry.unitId !== "string" || typeof entry.models !== "number") return [];
 		const unitId = entry.unitId === "shield-captain-shield" ? "shield-captain" : entry.unitId;
 		if (!unitById(unitId) || !sizeOf(unitById(unitId), entry.models)) return [];
 		const next = {
 			id: entry.id,
 			unitId,
-			models: entry.models
+			models: entry.models,
+			addedAt: typeof entry.addedAt === "number" ? entry.addedAt : index
 		};
 		if (entry.unitId === "shield-captain-shield") next.gear = { weapon: "shield-pyrithite" };
 		if (typeof entry.attachedTo === "string") next.attachedTo = entry.attachedTo;
@@ -3460,11 +3808,14 @@ function rosterFrom(parsed) {
 		}
 		seenEnhancements.add(enhancement.id);
 	}
+	const stored = parsed;
+	const legacyMain = stored.mainDispositions ? Object.values(stored.mainDispositions).find((value) => typeof value === "string") : void 0;
 	const warlordId = typeof parsed.warlordId === "string" ? parsed.warlordId : void 0;
 	return settle({
 		name: typeof parsed.name === "string" && parsed.name.trim() ? parsed.name : EMPTY.name,
 		limit: typeof parsed.limit === "number" && parsed.limit > 0 ? parsed.limit : EMPTY.limit,
 		detachments,
+		mainDisposition: typeof parsed.mainDisposition === "string" ? parsed.mainDisposition : legacyMain,
 		warlordId,
 		building: parsed.building === true,
 		entries
@@ -3515,7 +3866,7 @@ function orderedDetachments(unique) {
 	if (!unique) return items;
 	return UNIQUE_ORDER.map((id) => items.find((detachment) => detachment.id === id)).filter((item) => item != null);
 }
-function DetachmentChoices({ selected, onToggle, onRules }) {
+function DetachmentChoices({ selected, mainDisposition, onToggle, onMainDisposition, onRules }) {
 	const guardians = selected.includes("guardians");
 	const uniqueTaken = selected.some((id) => detachmentById(id)?.unique);
 	const groups = [{
@@ -3527,9 +3878,32 @@ function DetachmentChoices({ selected, onToggle, onRules }) {
 		hint: "These can be combined with each other, and with one unique.",
 		items: orderedDetachments(false)
 	}];
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	const choices = dispositionChoices(selected);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "flex flex-col gap-6",
-		children: groups.map((group) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [
+		children: [choices.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+			className: "font-display text-lg",
+			children: "Main disposition"
+		}), choices.length > 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+			className: "mt-2 flex w-fit max-w-full flex-col items-start text-xs text-muted",
+			children: ["Choose one from the detachments below", /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
+				"aria-label": "Main disposition",
+				value: mainDisposition && choices.includes(mainDisposition) ? mainDisposition : "",
+				onChange: (event) => onMainDisposition(event.target.value),
+				className: "weapon-select mt-1 h-8 max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+					value: "",
+					disabled: true,
+					children: "Choose"
+				}), choices.map((name) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+					value: name,
+					children: name
+				}, name))]
+			})]
+		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+			className: "mt-1 text-sm",
+			children: choices[0]
+		})] }) : null, groups.map((group) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 				className: "font-display text-lg",
 				children: group.title
@@ -3539,7 +3913,7 @@ function DetachmentChoices({ selected, onToggle, onRules }) {
 				children: group.hint
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "mt-3 grid gap-2 sm:grid-cols-2",
+				className: "mt-3 grid gap-2",
 				children: group.items.map((detachment) => {
 					const on = selected.includes(detachment.id);
 					const blocked = !on && (detachment.unique && uniqueTaken && !guardians || detachment.id !== "guardians" && !guardians && spentDp(selected) + detachment.dp > 3);
@@ -3549,30 +3923,54 @@ function DetachmentChoices({ selected, onToggle, onRules }) {
 							type: "button",
 							disabled: blocked,
 							onClick: () => onToggle(detachment.id),
-							className: "w-full text-left disabled:cursor-not-allowed",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-								className: "flex items-baseline justify-between gap-3",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "text-base font-medium",
-									children: detachment.name
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-									className: "text-sm text-gold",
-									children: [detachment.dp, " DP"]
-								})]
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "mt-1 block text-xs text-muted",
-								children: [detachment.unique ? "Shield Host" : null, detachment.rule?.name].filter(Boolean).join(" · ")
+							className: "flex min-h-11 w-full flex-col items-start text-left disabled:cursor-not-allowed",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: "flex w-full items-baseline justify-between gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "text-base font-medium",
+										children: detachment.name
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										className: "text-sm text-gold",
+										children: [detachment.dp, " DP"]
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: "mt-1 text-xs text-muted",
+									children: [detachment.unique ? "Shield Host" : "Detachment", detachment.rule ? ` · ${detachment.rule.name}` : ""]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: "mt-1 text-xs text-muted",
+									children: ["Force disposition: ", detachment.dispositions.join(", ")]
+								})
+							]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-2 flex flex-wrap gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								type: "button",
+								disabled: !on,
+								onClick: () => onToggle(detachment.id),
+								className: `min-h-11 rounded-lg border px-3 text-xs disabled:opacity-40 ${on ? "border-gold text-gold" : "border-line text-muted"}`,
+								children: "Deselect"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								type: "button",
+								onClick: () => onRules(detachment.id),
+								className: "min-h-11 rounded-lg border border-line px-3 text-xs text-muted",
+								children: "Rules"
 							})]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							type: "button",
-							onClick: () => onRules(detachment.id),
-							className: "mt-2 min-h-11 rounded-lg border border-line px-3 text-xs text-muted",
-							children: "Rules"
 						})]
 					}, detachment.id);
 				})
 			})
-		] }, group.title))
+		] }, group.title))]
+	});
+}
+function HomeButton({ onClick }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+		type: "button",
+		onClick,
+		className: "min-h-11 w-fit rounded-lg border border-line px-3 py-2 text-sm",
+		children: "Home"
 	});
 }
 function ListBuilder() {
@@ -3580,16 +3978,17 @@ function ListBuilder() {
 	const [activeId, setActiveId] = (0, import_react.useState)(null);
 	const [screen, setScreen] = (0, import_react.useState)("home");
 	const [ready, setReady] = (0, import_react.useState)(false);
-	const [query, setQuery] = (0, import_react.useState)("");
 	const [category, setCategory] = (0, import_react.useState)("All");
 	const [panel, setPanel] = (0, import_react.useState)("units");
 	const [sizes, setSizes] = (0, import_react.useState)({});
 	const [copied, setCopied] = (0, import_react.useState)(false);
-	const [fitsOnly, setFitsOnly] = (0, import_react.useState)(false);
 	const [draftGear, setDraftGear] = (0, import_react.useState)({});
 	const [sheet, setSheet] = (0, import_react.useState)(null);
 	const [rulesIds, setRulesIds] = (0, import_react.useState)(null);
 	const [coreOpen, setCoreOpen] = (0, import_react.useState)(false);
+	const [settingsOpen, setSettingsOpen] = (0, import_react.useState)(false);
+	const [theme, setTheme] = (0, import_react.useState)("auramite");
+	const [reduceMotion, setReduceMotion] = (0, import_react.useState)(false);
 	const roster = lists.find((list) => list.id === activeId) ?? EMPTY;
 	function setRoster(update) {
 		setLists((currentLists) => currentLists.map((list) => {
@@ -3603,6 +4002,11 @@ function ListBuilder() {
 	}
 	(0, import_react.useEffect)(() => {
 		setLists(loadLibrary());
+		const nextTheme = loadTheme();
+		const nextMotion = loadReduceMotion();
+		setTheme(nextTheme);
+		setReduceMotion(nextMotion);
+		applySettings(nextTheme, nextMotion);
 		setReady(true);
 	}, []);
 	(0, import_react.useEffect)(() => {
@@ -3614,6 +4018,25 @@ function ListBuilder() {
 	const remaining = roster.limit - total;
 	const over = remaining < 0;
 	const fill = roster.limit > 0 ? Math.min(100, Math.round(total / roster.limit * 100)) : 0;
+	function chooseTheme(next) {
+		setTheme(next);
+		applySettings(next, reduceMotion);
+	}
+	function chooseMotion(next) {
+		setReduceMotion(next);
+		applySettings(theme, next);
+	}
+	const settings = settingsOpen ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Settings, {
+		theme,
+		reduceMotion,
+		onTheme: chooseTheme,
+		onMotion: chooseMotion,
+		onClose: () => setSettingsOpen(false)
+	}) : null;
+	function nextStamp(entries) {
+		const latest = entries.reduce((max, entry) => Math.max(max, entry.addedAt ?? 0), 0);
+		return Math.max(Date.now(), latest + 1);
+	}
 	function chosenModels(unit) {
 		return sizes[unit.id] ?? unit.sizes[0].models;
 	}
@@ -3626,6 +4049,7 @@ function ListBuilder() {
 					id: crypto.randomUUID(),
 					unitId: unit.id,
 					models,
+					addedAt: nextStamp(current.entries),
 					gear: cleanGear(unit.id, draftGear[unit.id])
 				}]
 			});
@@ -3672,21 +4096,6 @@ function ListBuilder() {
 			};
 		});
 	}
-	function setGear(entryId, groupId, choiceId) {
-		setRoster((current) => ({
-			...current,
-			entries: current.entries.map((entry) => {
-				if (entry.id !== entryId) return entry;
-				const gear = { ...entry.gear ?? {} };
-				if (!choiceId) delete gear[groupId];
-				else gear[groupId] = choiceId;
-				return {
-					...entry,
-					gear: Object.keys(gear).length ? gear : void 0
-				};
-			})
-		}));
-	}
 	function setEnhancement(entryId, enhancementId) {
 		setRoster((current) => ({
 			...current,
@@ -3713,7 +4122,7 @@ function ListBuilder() {
 			else if (detachment.unique && current.detachments.some((picked) => detachmentById(picked)?.unique)) return current;
 			else if (spentDp(current.detachments) + detachment.dp > 3) return current;
 			else detachments = [...current.detachments, id];
-			return {
+			return settle({
 				...current,
 				detachments,
 				entries: current.entries.map((entry) => {
@@ -3724,8 +4133,14 @@ function ListBuilder() {
 					};
 					return entry;
 				})
-			};
+			});
 		});
+	}
+	function setMainDisposition(disposition) {
+		setRoster((current) => settle({
+			...current,
+			mainDisposition: disposition
+		}));
 	}
 	function setWarlord(id) {
 		setRoster((current) => settle({
@@ -3761,7 +4176,7 @@ function ListBuilder() {
 		}
 		return [
 			roster.name,
-			`${total} / ${roster.limit}`,
+			`${total} pts / ${roster.limit} pts`,
 			detachmentNames,
 			"",
 			blocks.join("\n\n")
@@ -3777,16 +4192,7 @@ function ListBuilder() {
 		setCopied(true);
 		window.setTimeout(() => setCopied(false), 1600);
 	}
-	const needle = query.trim().toLowerCase();
-	const visible = UNITS.filter((unit) => {
-		if (category !== "All" && unit.category !== category) return false;
-		if (needle && !unit.name.toLowerCase().includes(needle)) return false;
-		if (!fitsOnly) return true;
-		return unit.sizes.some((size) => {
-			const cost = nextCost(unit, size.models, roster.entries, roster.detachments);
-			return cost != null && cost <= remaining;
-		});
-	});
+	const visible = UNITS.filter((unit) => category === "All" || unitCategory(unit, roster.detachments) === category);
 	function createList() {
 		const id = crypto.randomUUID();
 		const list = {
@@ -3798,15 +4204,12 @@ function ListBuilder() {
 		setLists((current) => [list, ...current]);
 		setActiveId(id);
 		setScreen("detachments");
-		setPanel("units");
-		setQuery("");
 	}
 	function openList(id) {
 		const list = lists.find((item) => item.id === id);
 		if (!list) return;
 		setActiveId(id);
 		setScreen(list.detachments.length ? "units" : "detachments");
-		setPanel("units");
 	}
 	function deleteList(id) {
 		setLists((current) => current.filter((list) => list.id !== id));
@@ -3822,15 +4225,15 @@ function ListBuilder() {
 	}
 	if (!ready) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("main", { className: "min-h-screen" });
 	if (screen === "home" || !activeId && screen !== "saved") return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("main", {
-		className: "mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6",
+		className: "page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", { children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "text-xs font-medium tracking-[0.18em] text-gold uppercase",
+					className: "text-xs font-medium tracking-wide text-gold uppercase",
 					children: "Adeptus Custodes"
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-					className: "mt-1 font-display text-4xl",
+					className: "mt-1 font-display text-3xl leading-tight",
 					children: "The Ten Thousand's List Builder"
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -3858,30 +4261,32 @@ function ListBuilder() {
 						onClick: () => setCoreOpen(true),
 						className: "min-h-11 rounded-lg border border-line px-4 py-3 text-left text-sm",
 						children: "Core rules"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						onClick: () => setSettingsOpen(true),
+						className: "min-h-11 rounded-lg border border-line px-4 py-3 text-left text-sm",
+						children: "Settings"
 					})
 				]
 			}),
-			coreOpen ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CoreRules, { onClose: () => setCoreOpen(false) }) : null
+			coreOpen ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CoreRules, { onClose: () => setCoreOpen(false) }) : null,
+			settings
 		]
 	});
 	if (screen === "saved") {
 		const saved = [...lists].sort((a, b) => b.updatedAt - a.updatedAt);
 		return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("main", {
-			className: "mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6",
+			className: "page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
-				className: "flex items-start justify-between gap-3",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "text-xs font-medium tracking-[0.18em] text-gold uppercase",
+				className: "flex flex-col gap-3",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(HomeButton, { onClick: () => setScreen("home") }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-xs font-medium tracking-wide text-gold uppercase",
 					children: "Adeptus Custodes"
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-					className: "mt-1 font-display text-4xl",
+					className: "mt-1 font-display text-3xl leading-tight",
 					children: "Saved lists"
-				})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					type: "button",
-					onClick: () => setScreen("home"),
-					className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
-					children: "Back"
-				})]
+				})] })]
 			}), saved.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "flex flex-col gap-3",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -3913,8 +4318,9 @@ function ListBuilder() {
 									className: "shrink-0 text-sm text-gold",
 									children: [
 										points,
-										" / ",
-										list.limit
+										" pts / ",
+										list.limit,
+										" pts"
 									]
 								})]
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
@@ -3941,38 +4347,42 @@ function ListBuilder() {
 	}
 	if (screen === "detachments") return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("main", {
-			className: "mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6 pb-24 sm:px-6",
+			className: "page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6 pb-24",
 			children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", { children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "text-xs font-medium tracking-[0.18em] text-gold uppercase",
-							children: "Adeptus Custodes"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-							className: "mt-1 font-display text-4xl",
-							children: "Choose detachments"
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "flex gap-2",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								type: "button",
-								onClick: () => setCoreOpen(true),
-								className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
-								children: "Core rules"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								type: "button",
-								onClick: leaveToHome,
-								className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
-								children: "Lists"
-							})]
-						})]
+						className: "flex flex-col gap-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(HomeButton, { onClick: leaveToHome }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-wide text-gold uppercase",
+								children: "Adeptus Custodes"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+								className: "mt-1 font-display text-3xl leading-tight",
+								children: "Choose detachments"
+							})] }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "flex flex-wrap gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => setCoreOpen(true),
+									className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
+									children: "Core rules"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => setSettingsOpen(true),
+									className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
+									children: "Settings"
+								})]
+							})
+						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 						className: "mt-3 max-w-xl text-sm text-muted",
 						children: [
 							"Choose detachments before the list. You have ",
 							3,
-							" detachment points. Guardians of the Throne costs 3. Shield Hosts cannot be taken together."
+							" detachment points. Guardians of the Throne costs 3. Shield Hosts cannot be taken together. Use Deselect on a highlighted detachment to remove it."
 						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
@@ -3999,24 +4409,21 @@ function ListBuilder() {
 				] }),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DetachmentChoices, {
 					selected: roster.detachments,
+					mainDisposition: roster.mainDisposition,
 					onToggle: toggleDetachment,
+					onMainDisposition: setMainDisposition,
 					onRules: (id) => setRulesIds([id])
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "fixed inset-x-0 bottom-0 border-t border-line bg-bg",
+					className: "fixed inset-x-0 bottom-0 border-t border-line bg-bg pb-[env(safe-area-inset-bottom)]",
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "text-sm text-muted",
-							children: [
-								spentDp(roster.detachments),
-								" / ",
-								3,
-								" DP"
-							]
+							children: dispositionChoices(roster.detachments).length > 1 && !roster.mainDisposition ? "Choose a main disposition" : `${spentDp(roster.detachments)} / 3 DP`
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 							type: "button",
-							disabled: roster.detachments.length === 0,
+							disabled: roster.detachments.length === 0 || dispositionChoices(roster.detachments).length > 1 && !roster.mainDisposition,
 							onClick: () => {
 								setRoster((current) => ({
 									...current,
@@ -4035,7 +4442,8 @@ function ListBuilder() {
 			ids: rulesIds,
 			onClose: () => setRulesIds(null)
 		}) : null,
-		coreOpen ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CoreRules, { onClose: () => setCoreOpen(false) }) : null
+		coreOpen ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CoreRules, { onClose: () => setCoreOpen(false) }) : null,
+		settings
 	] });
 	if (screen === "play") {
 		const playEntries = priced.map((entry) => ({
@@ -4055,42 +4463,53 @@ function ListBuilder() {
 			total,
 			limit: roster.limit,
 			detachments: roster.detachments,
+			mainDisposition: roster.mainDisposition,
+			dispositionChoices: dispositionChoices(roster.detachments),
+			onMainDisposition: setMainDisposition,
 			entries: playEntries,
-			onBack: () => setScreen("units")
+			onBack: () => setScreen("units"),
+			onHome: leaveToHome
 		});
 	}
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("main", {
-		className: "mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-4 px-4 py-5 sm:px-6",
+		className: "page-enter mx-auto flex min-h-screen w-full max-w-3xl min-w-0 flex-col gap-4 overflow-x-hidden px-4 py-5",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
-				className: "flex flex-col gap-4 border-b border-line pb-4",
+				className: "flex flex-col gap-3 border-b border-line pb-4",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "flex flex-wrap items-end justify-between gap-4",
+						className: "flex items-center justify-between gap-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							onClick: leaveToHome,
+							className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
+							children: "Home"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							onClick: () => setScreen("play"),
+							className: "min-h-11 rounded-lg bg-gold px-3 py-2 text-sm font-medium text-bg",
+							children: "Play"
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex items-start justify-between gap-3",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "min-w-0 flex-1",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-xs font-medium tracking-[0.18em] text-gold uppercase",
-									children: "The Ten Thousand's List Builder"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-									"aria-label": "Army name",
-									value: roster.name,
-									onChange: (event) => setRoster((current) => ({
-										...current,
-										name: event.target.value
-									})),
-									className: "mt-1 w-full bg-transparent font-display text-3xl text-fg outline-none"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "mt-1 max-w-xl text-sm text-muted",
-									children: "Each datasheet is one unit. The 1st copy uses the First cost, the 2nd the Second, and the 3rd the Third. Both Custodian Guard datasheets are battleline and can be taken six times; later copies repeat the Third cost. Every other unit stops at three, and Trajann can be taken once."
-								})
-							]
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-wide text-gold uppercase",
+								children: "The Ten Thousand"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+								"aria-label": "Army name",
+								value: roster.name,
+								onChange: (event) => setRoster((current) => ({
+									...current,
+									name: event.target.value
+								})),
+								className: "mt-1 w-full bg-transparent font-display text-2xl leading-tight text-fg outline-none"
+							})]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-							className: "flex flex-col gap-1 text-xs tracking-wide text-muted uppercase",
-							children: ["Points limit", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+							className: "flex shrink-0 flex-col gap-1 text-xs tracking-wide text-muted uppercase",
+							children: ["Limit", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 								type: "number",
 								min: 1,
 								step: 50,
@@ -4099,21 +4518,29 @@ function ListBuilder() {
 									...current,
 									limit: Math.max(1, Number(event.target.value) || 0)
 								})),
-								className: "w-28 rounded-lg border border-line bg-surface px-3 py-2 text-base text-fg"
+								className: "w-24 rounded-lg border border-line bg-surface px-3 py-2 text-base text-fg"
 							})]
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "mb-2 flex items-baseline justify-between gap-3",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: `font-display text-4xl ${over ? "text-danger" : "text-fg"}`,
-							children: total
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: `font-display text-3xl tabular-nums ${over ? "text-danger" : "text-fg"}`,
+							children: [
+								total,
+								" ",
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "font-sans text-base font-normal tracking-normal",
+									children: "pts"
+								})
+							]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 							className: `text-sm ${over ? "text-danger" : "text-muted"}`,
 							children: [
-								over ? `${Math.abs(remaining)} over` : `${remaining} left`,
+								over ? `${Math.abs(remaining)} pts over` : `${remaining} pts left`,
 								" of ",
-								roster.limit
+								roster.limit,
+								" pts"
 							]
 						})]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -4124,19 +4551,13 @@ function ListBuilder() {
 						})
 					})] }),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "flex flex-wrap items-center justify-between gap-3",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "min-w-0",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-xs tracking-wide text-muted uppercase",
-									children: "Detachments"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm",
-									children: roster.detachments.map((id) => detachmentById(id)?.name).filter(Boolean).join(", ")
-								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "flex flex-col gap-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "min-w-0",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm break-words",
+								children: roster.detachments.map((id) => detachmentById(id)?.name).filter(Boolean).join(", ") || "No detachments"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 								className: "text-xs text-muted",
 								children: [
 									spentDp(roster.detachments),
@@ -4149,155 +4570,152 @@ function ListBuilder() {
 									" ",
 									"enhancements"
 								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								type: "button",
-								onClick: () => setScreen("play"),
-								className: "min-h-11 rounded-lg bg-gold px-3 py-2 text-sm font-medium text-bg",
-								children: "Play"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								type: "button",
-								onClick: () => setCoreOpen(true),
-								className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
-								children: "Core rules"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								type: "button",
-								onClick: () => setRulesIds(roster.detachments),
-								className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
-								children: "Rules"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								type: "button",
-								onClick: () => setScreen("detachments"),
-								className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
-								children: "Change"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								type: "button",
-								onClick: leaveToHome,
-								className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
-								children: "Lists"
-							})
-						]
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex flex-wrap gap-2",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => setCoreOpen(true),
+									className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
+									children: "Core rules"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => setSettingsOpen(true),
+									className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
+									children: "Settings"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => setRulesIds(roster.detachments),
+									className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
+									children: "Rules"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => setScreen("detachments"),
+									className: "min-h-11 rounded-lg border border-line px-3 py-2 text-sm",
+									children: "Change"
+								})
+							]
+						})]
 					})
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "grid grid-cols-2 gap-2 sm:hidden",
+				className: "grid grid-cols-2 gap-2",
 				children: ["units", "list"].map((key) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 					type: "button",
 					onClick: () => setPanel(key),
-					className: `rounded-lg border px-3 py-3 text-sm ${panel === key ? "border-gold bg-gold text-bg" : "border-line bg-surface text-fg"}`,
+					className: `min-h-11 rounded-lg border px-3 text-sm ${panel === key ? "border-gold bg-gold text-bg" : "border-line bg-surface text-fg"}`,
 					children: key === "units" ? "Units" : `List (${priced.length})`
 				}, key))
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]",
+				className: "grid min-w-0 gap-4",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-					className: `rounded-lg border border-line bg-surface ${panel === "list" ? "hidden sm:block" : ""}`,
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "flex flex-col gap-3 border-b border-line p-4",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "flex items-center gap-2 rounded-lg border border-line bg-bg px-3",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, {
-								className: "size-4 shrink-0 text-muted",
-								"aria-hidden": "true"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-								value: query,
-								onChange: (event) => setQuery(event.target.value),
-								placeholder: "Search units",
-								className: "w-full bg-transparent py-3 text-sm outline-none"
-							})]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "flex flex-wrap gap-2",
-							children: [["All", ...CATEGORIES].map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								type: "button",
-								onClick: () => setCategory(item),
-								className: `rounded-full border px-3 py-2 text-xs ${category === item ? "border-gold bg-gold text-bg" : "border-line text-muted"}`,
-								children: item
-							}, item)), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								type: "button",
-								onClick: () => setFitsOnly((value) => !value),
-								className: `rounded-full border px-3 py-2 text-xs ${fitsOnly ? "border-gold bg-gold text-bg" : "border-line text-muted"}`,
-								children: "Fits remaining"
-							})]
-						})]
+					className: `min-w-0 ${panel === "list" ? "hidden" : "section-open"}`,
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "flex min-w-0 gap-2 overflow-x-auto border-b border-line py-3",
+						children: ["All", ...CATEGORIES].map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							onClick: () => setCategory(item),
+							className: `min-h-11 shrink-0 rounded-full border px-3 text-sm ${category === item ? "border-gold bg-gold text-bg" : "border-line text-muted"}`,
+							children: item
+						}, item))
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "max-h-[70vh] overflow-auto",
+						className: "min-w-0",
 						children: visible.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "p-6 text-sm text-muted",
+							className: "py-6 text-sm text-muted",
 							children: "Nothing matches."
 						}) : visible.map((unit) => {
 							const models = chosenModels(unit);
-							const size = sizeOf(unit, models);
+							sizeOf(unit, models);
 							const upcoming = nextCost(unit, models, roster.entries, roster.detachments);
+							const gearCost = gearPoints(unit.id, draftGear[unit.id]);
+							const shown = upcoming == null ? null : upcoming + gearCost;
+							const taken = roster.entries.filter((entry) => entry.unitId === unit.id).length;
+							const nextLine = upcoming == null ? null : priceLine(unit, models, taken, { wargear: gearCost });
 							return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
-								className: "border-b border-line px-4 py-4 last:border-b-0",
+								className: "min-w-0 border-b border-line py-4 last:border-b-0",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 										className: "flex items-start justify-between gap-3",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-												className: "text-base font-medium",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "min-w-0",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+												className: "text-base leading-snug font-medium break-words",
 												children: unit.name
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-												className: "text-xs text-muted",
-												children: unit.category
-											}),
-											datasheetById(unit.id) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												type: "button",
-												onClick: () => setSheet({ unitId: unit.id }),
-												className: "mt-2 min-h-11 rounded-lg border border-line px-3 text-xs text-muted",
-												children: "Datasheet"
-											}) : null
-										] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "mt-0.5 text-xs text-muted",
+												children: unitCategory(unit, roster.detachments)
+											})]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 											type: "button",
-											disabled: upcoming == null,
+											disabled: shown == null,
 											onClick: () => add(unit, models),
-											className: "inline-flex min-h-11 items-center gap-1 rounded-lg bg-gold px-3 text-sm font-medium text-bg disabled:opacity-40",
+											className: "inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg bg-gold px-3 text-sm font-medium text-bg disabled:opacity-40",
 											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, {
 												className: "size-4",
 												"aria-hidden": "true"
-											}), upcoming == null ? "Max" : upcoming]
+											}), shown == null ? "Max" : `${shown} pts`]
 										})]
 									}),
-									unit.sizes.length > 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "mt-3 flex flex-wrap gap-2",
-										children: unit.sizes.map((option) => {
-											const optionCost = nextCost(unit, option.models, roster.entries, roster.detachments);
-											const selected = option.models === models;
-											return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									unit.sizes.length > 1 || unit.sizes[0].models > 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "mt-3 flex items-center gap-2",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 												type: "button",
-												onClick: () => setSizes((current) => ({
-													...current,
-													[unit.id]: option.models
-												})),
-												className: `rounded-lg border px-3 py-2 text-xs ${selected ? "border-gold text-gold" : "border-line text-muted"}`,
-												children: [
-													"x",
-													option.models,
-													optionCost == null ? "" : ` · ${optionCost}`
-												]
-											}, option.models);
-										})
-									}) : unit.sizes[0].models > 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-										className: "mt-2 text-xs text-muted",
-										children: ["x", unit.sizes[0].models]
+												"aria-label": `Fewer ${unit.name} models`,
+												disabled: unit.sizes.findIndex((option) => option.models === models) <= 0,
+												onClick: () => {
+													const index = unit.sizes.findIndex((option) => option.models === models);
+													const next = unit.sizes[index - 1];
+													if (!next) return;
+													setSizes((current) => ({
+														...current,
+														[unit.id]: next.models
+													}));
+												},
+												className: "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-line text-fg disabled:opacity-40",
+												children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Minus, {
+													className: "size-4",
+													"aria-hidden": "true"
+												})
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+												className: "min-w-12 text-center text-sm tabular-nums",
+												children: ["x", models]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												type: "button",
+												"aria-label": `More ${unit.name} models`,
+												disabled: unit.sizes.findIndex((option) => option.models === models) >= unit.sizes.length - 1,
+												onClick: () => {
+													const index = unit.sizes.findIndex((option) => option.models === models);
+													const next = unit.sizes[index + 1];
+													if (!next) return;
+													setSizes((current) => ({
+														...current,
+														[unit.id]: next.models
+													}));
+												},
+												className: "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-line text-fg disabled:opacity-40",
+												children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, {
+													className: "size-4",
+													"aria-hidden": "true"
+												})
+											})
+										]
 									}) : null,
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mt-2 text-xs text-muted",
-										children: ladder(unit, size, roster.detachments)
+										className: "mt-2 text-xs break-words text-muted",
+										children: nextLine ?? costNote(unit, models, copyLimit(unit, roster.detachments))
 									}),
-									attachSummary(unit.id) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									attachSummary(unit.id) || unit.note ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 										className: "mt-1 text-xs text-muted",
-										children: attachSummary(unit.id)
-									}) : null,
-									unit.note ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mt-1 text-xs text-muted",
-										children: unit.note
+										children: [attachSummary(unit.id), unit.note].filter(Boolean).join(" · ")
 									}) : null,
 									armedWith(unit.id) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 										className: "mt-2 text-xs text-muted",
@@ -4305,18 +4723,23 @@ function ListBuilder() {
 									}) : null,
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WargearPicker, {
 										unitId: unit.id,
-										scope: `draft-${unit.id}`,
 										gear: draftGear[unit.id],
 										onGear: (groupId, choiceId) => setDraft(unit.id, groupId, choiceId)
-									})
+									}),
+									datasheetById(unit.id) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										type: "button",
+										onClick: () => setSheet({ unitId: unit.id }),
+										className: "mt-1 inline-flex min-h-11 items-center text-xs text-gold",
+										children: "Datasheet"
+									}) : null
 								]
 							}, unit.id);
 						})
 					})]
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-					className: `rounded-lg border border-line bg-surface ${panel === "units" ? "hidden sm:block" : ""}`,
+				}, panel === "units" ? "units" : "units-hidden"), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+					className: panel === "units" ? "hidden" : "section-open",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "flex items-center justify-between gap-3 border-b border-line px-4 py-3",
+						className: "flex items-center justify-between gap-3 border-b border-line py-3",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 							className: "font-display text-lg",
 							children: "List"
@@ -4325,7 +4748,7 @@ function ListBuilder() {
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 								type: "button",
 								onClick: copyList,
-								className: "rounded-lg border border-line px-3 py-2 text-sm text-fg",
+								className: "min-h-11 rounded-lg border border-line px-3 text-sm text-fg",
 								children: copied ? "Copied" : "Copy"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 								type: "button",
@@ -4334,56 +4757,58 @@ function ListBuilder() {
 									entries: [],
 									warlordId: void 0
 								})),
-								className: "rounded-lg border border-line px-3 py-2 text-sm text-muted",
+								className: "min-h-11 rounded-lg border border-line px-3 text-sm text-muted",
 								children: "Clear"
 							})]
 						})]
-					}), priced.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "p-6 text-sm text-muted",
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { children: priced.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "py-6 text-sm text-muted",
 						children: "Add a unit."
 					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", { children: [priced.some((entry) => isCharacter(entry.unitId)) && !roster.warlordId ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", {
-						className: "border-b border-line px-4 py-3 text-sm text-danger",
+						className: "border-b border-line py-3 text-sm text-danger",
 						children: "Choose a warlord."
 					}) : null, priced.map((entry) => {
 						const targets = priced.filter((candidate) => candidate.id !== entry.id && canLead(entry.unitId, candidate.unitId) && (!priced.some((leader) => leader.attachedTo === candidate.id) || entry.attachedTo === candidate.id));
 						const leader = priced.find((candidate) => candidate.attachedTo === entry.id);
 						const character = isCharacter(entry.unitId);
 						const warlord = entry.id === roster.warlordId;
+						const kit = gearLineCounted(entry.unitId, entry.gear, entry.models);
+						const line = priceLine(entry.unit, entry.models, entry.copy - 1, {
+							wargear: gearPoints(entry.unitId, entry.gear),
+							enhancement: entry.enhancementId ? enhancementById(entry.enhancementId)?.points ?? 0 : 0
+						});
 						return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-							className: `border-b border-line px-3 py-3 last:border-b-0 ${leader ? "ml-4 border-l border-gold" : ""}`,
+							className: `border-b border-line py-3 last:border-b-0 ${leader ? "border-l-2 border-l-gold pl-4" : ""}`,
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "flex items-center gap-2",
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "min-w-0 flex-1",
+									className: "flex items-start justify-between gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "min-w-0",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+											className: "text-sm font-medium break-words",
+											children: [entry.unit.name, entry.models > 1 ? ` x${entry.models}` : ""]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+											className: "text-xs break-words text-muted",
 											children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-													className: "truncate text-sm font-medium",
-													children: [entry.unit.name, entry.models > 1 ? ` x${entry.models}` : ""]
-												}),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-													className: "text-xs text-muted",
-													children: [
-														ordinal(entry.copy),
-														" copy",
-														entry.unit.maxCopies === 1 ? " · one only" : "",
-														warlord ? " · Warlord" : "",
-														leader ? ` · led by ${leader.unit.name}` : "",
-														entry.enhancementId ? ` · ${enhancementById(entry.enhancementId)?.name ?? ""}` : ""
-													]
-												}),
-												datasheetById(entry.unitId) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-													type: "button",
-													onClick: () => setSheet({
-														unitId: entry.unitId,
-														entryId: entry.id
-													}),
-													className: "mt-1 inline-flex min-h-11 items-center text-xs text-gold",
-													children: "Datasheet"
-												}) : null
+												line,
+												entry.unit.maxCopies === 1 ? " · one only" : "",
+												warlord ? " · Warlord" : "",
+												leader ? ` · led by ${leader.unit.name}` : "",
+												entry.enhancementId ? ` · ${enhancementById(entry.enhancementId)?.name ?? ""}` : ""
 											]
-										}),
+										})]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "shrink-0 text-sm text-gold tabular-nums",
+										children: [entry.cost, " pts"]
+									})]
+								}),
+								kit ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-xs break-words text-muted",
+									children: kit
+								}) : null,
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "mt-2 flex flex-wrap items-center gap-2",
+									children: [
 										character ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 											type: "button",
 											"aria-pressed": warlord,
@@ -4394,36 +4819,31 @@ function ListBuilder() {
 												"aria-hidden": "true"
 											}), "Warlord"]
 										}) : null,
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											className: "w-12 text-right text-sm text-gold",
-											children: entry.cost
-										}),
+										datasheetById(entry.unitId) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											type: "button",
+											onClick: () => setSheet({
+												unitId: entry.unitId,
+												entryId: entry.id
+											}),
+											className: "inline-flex min-h-11 items-center rounded-lg border border-line px-3 text-xs text-gold",
+											children: "Datasheet"
+										}) : null,
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 											type: "button",
 											"aria-label": `Remove ${entry.unit.name}`,
 											onClick: () => remove(entry.id),
-											className: "rounded-lg p-2 text-muted",
+											className: "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-line text-muted",
 											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, { className: "size-4" })
 										})
 									]
 								}),
-								armedWith(entry.unitId) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "mt-1 text-xs text-muted",
-									children: armedWith(entry.unitId)
-								}) : null,
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WargearPicker, {
-									unitId: entry.unitId,
-									scope: entry.id,
-									gear: entry.gear,
-									onGear: (groupId, choiceId) => setGear(entry.id, groupId, choiceId)
-								}),
-								attachSummary(entry.unitId) ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-									className: "mt-2 block text-xs text-muted",
+								attachSummary(entry.unitId) && (targets.length > 0 || entry.attachedTo) ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+									className: "mt-2 flex w-fit max-w-full flex-col items-start text-xs text-muted",
 									children: ["Attached to", /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
 										"aria-label": `Attach ${entry.unit.name}`,
 										value: entry.attachedTo ?? "",
 										onChange: (event) => attach(entry.id, event.target.value),
-										className: "mt-1 w-full rounded-lg border border-line bg-bg px-2 py-2 text-sm text-fg",
+										className: "wargear-select mt-1 h-8 w-fit max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg",
 										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
 											value: "",
 											children: "Not attached"
@@ -4447,12 +4867,12 @@ function ListBuilder() {
 										children: "This squad already has an enhancement."
 									});
 									return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-										className: "mt-2 block text-xs text-muted",
+										className: "mt-2 flex w-fit max-w-full flex-col items-start text-xs text-muted",
 										children: ["Enhancement", /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
 											"aria-label": `Enhancement for ${entry.unit.name}`,
 											value: entry.enhancementId ?? "",
 											onChange: (event) => setEnhancement(entry.id, event.target.value),
-											className: "mt-1 w-full rounded-lg border border-line bg-bg px-2 py-2 text-sm text-fg",
+											className: "wargear-select mt-1 h-8 w-fit max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg",
 											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
 												value: "",
 												children: "None"
@@ -4462,6 +4882,7 @@ function ListBuilder() {
 													enhancement.name,
 													" +",
 													enhancement.points,
+													" pts",
 													enhancement.once ? " · one per army" : enhancement.upgrade ? " · upgrade" : ""
 												]
 											}, enhancement.id))]
@@ -4470,13 +4891,21 @@ function ListBuilder() {
 								})()
 							]
 						}, entry.id);
-					})] })]
-				})]
+					})] }) })]
+				}, panel === "list" ? "list" : "list-hidden")]
 			}),
 			sheet ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DatasheetView, {
 				unitId: sheet.unitId,
 				unitName: unitById(sheet.unitId)?.name ?? "Datasheet",
 				gear: sheet.entryId ? roster.entries.find((entry) => entry.id === sheet.entryId)?.gear : void 0,
+				enhancement: (() => {
+					const picked = sheet.entryId ? roster.entries.find((entry) => entry.id === sheet.entryId)?.enhancementId : void 0;
+					const rule = picked ? enhancementById(picked) : void 0;
+					return rule ? {
+						name: rule.name,
+						rule: rule.rule
+					} : void 0;
+				})(),
 				listOnly: Boolean(sheet.entryId),
 				onClose: () => setSheet(null)
 			}) : null,
@@ -4484,7 +4913,8 @@ function ListBuilder() {
 				ids: rulesIds,
 				onClose: () => setRulesIds(null)
 			}) : null,
-			coreOpen ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CoreRules, { onClose: () => setCoreOpen(false) }) : null
+			coreOpen ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CoreRules, { onClose: () => setCoreOpen(false) }) : null,
+			settings
 		]
 	});
 }
