@@ -44,6 +44,7 @@ export function DetachmentSheet({ ids, onClose }: { ids: string[]; onClose: () =
                 <p className="text-xs text-muted">
                   {detachment.dp} DP{detachment.unique ? " · Shield Host" : ""}
                 </p>
+                <p className="text-sm">Force disposition: {detachment.dispositions.join(", ")}</p>
                 {detachment.rule ? (
                   <section>
                     <h3 className="text-xs tracking-wide text-gold uppercase">{detachment.rule.name}</h3>

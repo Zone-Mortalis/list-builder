@@ -8,6 +8,7 @@ export type Detachment = {
   dp: number;
   unique?: boolean;
   rule?: { name: string; text: string };
+  dispositions: readonly string[];
   katah?: { name: string; effect: string };
   stratagems: Stratagem[];
 };
@@ -57,6 +58,7 @@ export const DETACHMENTS: Detachment[] = [
   {
     id: "guardians",
     name: "Guardians of the Throne",
+    dispositions: ["Priority Assets", "Purge the Foe"],
     dp: 3,
     rule: {
       name: "Martial Mastery",
@@ -104,6 +106,7 @@ export const DETACHMENTS: Detachment[] = [
   {
     id: "aquilan",
     name: "Aquilan Shield",
+    dispositions: ["Take and Hold"],
     dp: 1,
     unique: true,
     rule: {
@@ -135,6 +138,7 @@ export const DETACHMENTS: Detachment[] = [
   {
     id: "auric",
     name: "Auric Champions",
+    dispositions: ["Purge the Foe"],
     dp: 1,
     rule: {
       name: "Assemblage of Might",
@@ -158,6 +162,7 @@ export const DETACHMENTS: Detachment[] = [
   {
     id: "dread-host",
     name: "Dread Host",
+    dispositions: ["Purge the Foe"],
     dp: 1,
     unique: true,
     rule: {
@@ -192,6 +197,7 @@ export const DETACHMENTS: Detachment[] = [
   {
     id: "emissaries",
     name: "Emissaries Imperatus",
+    dispositions: ["Priority Assets"],
     dp: 1,
     unique: true,
     rule: { name: "Heralds of the Throne", text: "Friendly Adeptus Custodes units have Fights First." },
@@ -223,6 +229,7 @@ export const DETACHMENTS: Detachment[] = [
   {
     id: "chosen",
     name: "Emperor's Chosen",
+    dispositions: ["Priority Assets"],
     dp: 1,
     unique: true,
     rule: {
@@ -257,6 +264,7 @@ export const DETACHMENTS: Detachment[] = [
   {
     id: "grav",
     name: "Grav-Assault Force",
+    dispositions: ["Reconnaissance"],
     dp: 1,
     rule: {
       name: "Flare Shields",
@@ -286,6 +294,7 @@ export const DETACHMENTS: Detachment[] = [
   {
     id: "companions",
     name: "Honoured Companions",
+    dispositions: ["Take and Hold"],
     dp: 1,
     rule: {
       name: "Companion’s Watch",
@@ -315,6 +324,7 @@ export const DETACHMENTS: Detachment[] = [
   {
     id: "lions",
     name: "Lions of the Emperor",
+    dispositions: ["Disruption"],
     dp: 1,
     rule: {
       name: "On Gilded Wings",
@@ -344,6 +354,7 @@ export const DETACHMENTS: Detachment[] = [
   {
     id: "moritoi",
     name: "Might of the Moritoi",
+    dispositions: ["Take and Hold"],
     dp: 1,
     rule: {
       name: "Moritoi Ancients",
@@ -373,6 +384,7 @@ export const DETACHMENTS: Detachment[] = [
   {
     id: "vigil",
     name: "Null Maiden Vigil",
+    dispositions: ["Disruption"],
     dp: 1,
     rule: {
       name: "Silent Sisterhood",
@@ -402,6 +414,7 @@ export const DETACHMENTS: Detachment[] = [
   {
     id: "shadowkeepers",
     name: "Shadowkeepers",
+    dispositions: ["Purge the Foe"],
     dp: 1,
     unique: true,
     rule: {
@@ -436,6 +449,7 @@ export const DETACHMENTS: Detachment[] = [
   {
     id: "solar",
     name: "Solar Watch",
+    dispositions: ["Reconnaissance"],
     dp: 1,
     unique: true,
     rule: {

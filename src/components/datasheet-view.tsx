@@ -111,7 +111,7 @@ export function WargearPicker({
   const groups = gearGroups(unitId);
   if (groups.length === 0) return null;
   return (
-    <div className="mt-2 flex flex-col items-start gap-1.5">
+    <div className="mt-2 flex w-full min-w-0 flex-col items-stretch gap-1.5">
       {groups.map((group) => (
         <GearGroupControl key={group.id} group={group} gear={gear} onGear={onGear} />
       ))}
@@ -159,7 +159,7 @@ function GearGroupControl({
       aria-label="Weapon"
       value={selected}
       onChange={(event) => onGear(group.id, event.target.value)}
-      className="wargear-select h-8 w-fit max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg"
+      className="wargear-select h-8 w-full max-w-64 min-w-0 rounded-lg border border-line bg-bg px-2 text-xs text-fg"
     >
       {group.choices.map((item) => (
         <option key={item.id} value={item.id}>

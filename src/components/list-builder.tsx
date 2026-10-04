@@ -24,14 +24,15 @@ import {
   canLead,
   armedWith,
   cleanGear,
-  costAt,
   copyLimit,
+  costNote,
   gearLine,
   gearLineCounted,
   gearPoints,
   isCharacter,
   ordinal,
   sizeOf,
+  squadCost,
   unitById,
   unitCategory,
   type Unit,
@@ -52,6 +53,7 @@ type Roster = {
   name: string;
   limit: number;
   detachments: string[];
+  mainDispositions?: Record<string, string>;
   warlordId?: string;
   building: boolean;
   entries: Entry[];
@@ -77,13 +79,13 @@ function price(entries: Entry[]): Priced[] {
     const unit = unitById(entry.unitId);
     const size = unit ? sizeOf(unit, entry.models) : undefined;
     if (!unit || !size) continue;
-    const key = `${entry.unitId}:${entry.models}`;
+    const key = entry.unitId;
     const copyIndex = seen.get(key) ?? 0;
     seen.set(key, copyIndex + 1);
     const bonus = entry.enhancementId ? (enhancementById(entry.enhancementId)?.points ?? 0) : 0;
     costById.set(entry.id, {
       copy: copyIndex + 1,
-      cost: costAt(size, copyIndex) + bonus + gearPoints(entry.unitId, entry.gear),
+      cost: squadCost(unit, entry.models, copyIndex) + bonus + gearPoints(entry.unitId, entry.gear),
     });
   }
   return entries.flatMap((entry) => {
@@ -98,10 +100,8 @@ function price(entries: Entry[]): Priced[] {
 function nextCost(unit: Unit, models: number, entries: Entry[], detachments: readonly string[]): number | null {
   const ofUnit = entries.filter((entry) => entry.unitId === unit.id).length;
   if (ofUnit >= copyLimit(unit, detachments)) return null;
-  const taken = entries.filter((entry) => entry.unitId === unit.id && entry.models === models).length;
-  const size = sizeOf(unit, models);
-  if (!size) return null;
-  return costAt(size, taken);
+  if (!sizeOf(unit, models)) return null;
+  return squadCost(unit, models, ofUnit);
 }
 
 function partnerEntry(entry: Entry, entries: Entry[]): Entry | undefined {
@@ -161,7 +161,19 @@ function settle(roster: Roster): Roster {
     : characters.length === 1
       ? characters[0]!.id
       : undefined;
-  return { ...roster, warlordId, entries: arrange(entries, warlordId) };
+  return { ...roster, warlordId, mainDispositions: cleanMainDispositions(roster.detachments, roster.mainDispositions), entries: arrange(entries, warlordId) };
+}
+
+function cleanMainDispositions(detachments: readonly string[], raw?: Record<string, string>) {
+  if (!raw) return undefined;
+  const next: Record<string, string> = {};
+  for (const id of detachments) {
+    const sheet = detachmentById(id);
+    const value = raw[id];
+    if (!sheet || sheet.dispositions.length < 2 || !value || !sheet.dispositions.includes(value)) continue;
+    next[id] = value;
+  }
+  return Object.keys(next).length ? next : undefined;
 }
 
 function enhancementSlots(entries: Entry[], exceptId?: string): Set<string> {
@@ -198,20 +210,6 @@ function legalDetachments(ids: string[]): string[] {
     if (detachment.unique) uniqueTaken = true;
   }
   return kept;
-}
-
-function ladder(unit: Unit, size: UnitSize, detachments: readonly string[]): string {
-  const costs = Array.from({ length: copyLimit(unit, detachments) }, (_, index) => costAt(size, index));
-  const parts: string[] = [];
-  let index = 0;
-  while (index < costs.length) {
-    let end = index;
-    while (end + 1 < costs.length && costs[end + 1] === costs[index]) end += 1;
-    const label = index === end ? ordinal(index + 1) : `${ordinal(index + 1)}–${ordinal(end + 1)}`;
-    parts.push(`${label} ${costs[index]} pts`);
-    index = end + 1;
-  }
-  return parts.join(" · ");
 }
 
 function rosterFrom(parsed: Partial<Roster> | null): Roster {
@@ -277,6 +275,12 @@ function rosterFrom(parsed: Partial<Roster> | null): Roster {
     name: typeof parsed.name === "string" && parsed.name.trim() ? parsed.name : EMPTY.name,
     limit: typeof parsed.limit === "number" && parsed.limit > 0 ? parsed.limit : EMPTY.limit,
     detachments,
+    mainDispositions:
+      parsed.mainDispositions && typeof parsed.mainDispositions === "object" && !Array.isArray(parsed.mainDispositions)
+        ? Object.fromEntries(
+            Object.entries(parsed.mainDispositions).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+          )
+        : undefined,
     warlordId,
     building: parsed.building === true,
     entries,
@@ -374,6 +378,7 @@ function DetachmentChoices({
                       {detachment.unique ? "Shield Host" : "Detachment"}
                       {detachment.rule ? ` · ${detachment.rule.name}` : ""}
                     </span>
+                    <span className="mt-1 text-xs text-muted">{detachment.dispositions.join(", ")}</span>
                   </button>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
@@ -584,6 +589,15 @@ export function ListBuilder() {
         }),
       });
     });
+  }
+
+  function setMainDisposition(id: string, disposition: string) {
+    setRoster((current) =>
+      settle({
+        ...current,
+        mainDispositions: { ...current.mainDispositions, [id]: disposition },
+      }),
+    );
   }
 
   function setWarlord(id: string) {
@@ -886,6 +900,8 @@ export function ListBuilder() {
         total={total}
         limit={roster.limit}
         detachments={roster.detachments}
+        mainDispositions={roster.mainDispositions}
+        onMainDisposition={setMainDisposition}
         entries={playEntries}
         onBack={() => setScreen("units")}
       />
@@ -893,7 +909,7 @@ export function ListBuilder() {
   }
 
   return (
-    <main className="page-enter mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-4 px-4 py-5 sm:px-6">
+    <main className="page-enter mx-auto flex min-h-screen w-full max-w-6xl min-w-0 flex-col gap-4 overflow-x-hidden px-4 py-5 sm:px-6">
       <header className="flex flex-col gap-3 border-b border-line pb-4">
         <div className="flex items-center justify-between gap-3">
           <button
@@ -1009,9 +1025,9 @@ export function ListBuilder() {
         ))}
       </div>
 
-      <div className="grid gap-4">
-        <section key={panel === "units" ? "units" : "units-hidden"} className={panel === "list" ? "hidden" : "section-open"}>
-          <div className="-mx-1 flex gap-2 overflow-x-auto border-b border-line px-1 py-3">
+      <div className="grid min-w-0 gap-4">
+        <section key={panel === "units" ? "units" : "units-hidden"} className={`min-w-0 ${panel === "list" ? "hidden" : "section-open"}`}>
+          <div className="flex min-w-0 gap-2 overflow-x-auto border-b border-line py-3">
               {["All", ...CATEGORIES].map((item) => (
                 <button
                   key={item}
@@ -1025,7 +1041,7 @@ export function ListBuilder() {
                 </button>
               ))}
             </div>
-          <div className="max-h-[70vh] overflow-auto">
+          <div className="max-h-[70vh] min-w-0 overflow-x-hidden overflow-y-auto">
             {visible.length === 0 ? (
               <p className="py-6 text-sm text-muted">Nothing matches.</p>
             ) : (
@@ -1036,7 +1052,7 @@ export function ListBuilder() {
                 const gearCost = gearPoints(unit.id, draftGear[unit.id]);
                 const shown = upcoming == null ? null : upcoming + gearCost;
                 return (
-                  <article key={unit.id} className="border-b border-line py-4 last:border-b-0">
+                  <article key={unit.id} className="min-w-0 border-b border-line py-4 last:border-b-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h2 className="text-base leading-snug font-medium break-words">{unit.name}</h2>
@@ -1085,7 +1101,7 @@ export function ListBuilder() {
                         </button>
                       </div>
                     ) : null}
-                    <p className="mt-2 text-xs text-muted">{ladder(unit, size, roster.detachments)}</p>
+                    <p className="mt-2 text-xs break-words text-muted">{costNote(unit, models, copyLimit(unit, roster.detachments))}</p>
                     {attachSummary(unit.id) || unit.note ? (
                       <p className="mt-1 text-xs text-muted">
                         {[attachSummary(unit.id), unit.note].filter(Boolean).join(" · ")}

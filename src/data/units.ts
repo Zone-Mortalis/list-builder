@@ -241,6 +241,46 @@ export function costAt(size: UnitSize, copyIndex: number): number {
   return size.fourthPlus ?? size.costs[size.costs.length - 1]!;
 }
 
+/** Smallest squad, first copy. Later copies add that size's extra-unit tax. Extra models add the larger size's premium. */
+export function squadCost(unit: Unit, models: number, copyIndex: number): number {
+  const base = unit.sizes[0];
+  const size = sizeOf(unit, models);
+  if (!base || !size) return 0;
+  const unitCost = base.costs[0] ?? 0;
+  const additionalUnit = costAt(base, copyIndex) - unitCost;
+  const additionalModels = (size.costs[0] ?? unitCost) - unitCost;
+  return unitCost + additionalUnit + additionalModels;
+}
+
+export function costNote(unit: Unit, models: number, copies: number): string {
+  const base = unit.sizes[0];
+  if (!base) return "";
+  const unitCost = base.costs[0] ?? 0;
+  const parts = [`Unit ${unitCost} pts`];
+  const taxes = Array.from({ length: Math.max(0, copies - 1) }, (_, index) => costAt(base, index + 1) - unitCost);
+  if (taxes.some((tax) => tax !== 0)) {
+    if (taxes.every((tax) => tax === taxes[0])) {
+      parts.push(`Additional unit +${taxes[0]} pts`);
+    } else {
+      let index = 0;
+      while (index < taxes.length) {
+        let end = index;
+        while (end + 1 < taxes.length && taxes[end + 1] === taxes[index]) end += 1;
+        const tax = taxes[index] ?? 0;
+        if (tax !== 0) {
+          const from = ordinal(index + 2);
+          const label = index === end ? `${from} unit` : `${from}–${ordinal(end + 2)} unit`;
+          parts.push(`${label} +${tax} pts`);
+        }
+        index = end + 1;
+      }
+    }
+  }
+  const additionalModels = (sizeOf(unit, models)?.costs[0] ?? unitCost) - unitCost;
+  if (additionalModels) parts.push(`Additional models +${additionalModels} pts`);
+  return parts.join(" · ");
+}
+
 export function ordinal(n: number): string {
   const teen = n % 100;
   if (teen >= 11 && teen <= 13) return `${n}th`;
