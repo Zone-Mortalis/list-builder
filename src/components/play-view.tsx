@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ARMY_RULES } from "@/data/rules";
-import { detachmentById, ENHANCEMENTS, enhancementsFor, type Detachment } from "@/data/enhancements";
+import { detachmentById, ENHANCEMENTS, enhancementsFor } from "@/data/enhancements";
 import { datasheetById } from "@/data/datasheets";
 import {
   canTarget,
@@ -66,7 +66,8 @@ export function PlayView({
   total,
   limit,
   detachments,
-  mainDispositions,
+  mainDisposition,
+  dispositionChoices,
   onMainDisposition,
   entries,
   onBack,
@@ -75,8 +76,9 @@ export function PlayView({
   total: number;
   limit: number;
   detachments: string[];
-  mainDispositions?: Record<string, string>;
-  onMainDisposition: (detachmentId: string, disposition: string) => void;
+  mainDisposition?: string;
+  dispositionChoices: string[];
+  onMainDisposition: (disposition: string) => void;
   entries: PlayEntry[];
   onBack: () => void;
 }) {
@@ -95,11 +97,12 @@ export function PlayView({
   const openEnhancement = openEntry?.enhancement
     ? ENHANCEMENTS.find((enhancement) => enhancement.name === openEntry.enhancement)
     : undefined;
-
-  function pickedDisposition(sheet: Detachment) {
-    const saved = mainDispositions?.[sheet.id];
-    return saved && sheet.dispositions.includes(saved) ? saved : (sheet.dispositions[0] ?? "");
-  }
+  const main =
+    mainDisposition && dispositionChoices.includes(mainDisposition)
+      ? mainDisposition
+      : dispositionChoices.length === 1
+        ? dispositionChoices[0]
+        : undefined;
 
   return (
     <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 px-4 py-5 sm:px-6">
@@ -112,11 +115,7 @@ export function PlayView({
               {total} pts / {limit} pts
               {sheets.length ? ` · ${sheets.map((sheet) => sheet.name).join(", ")}` : ""}
             </p>
-            {sheets.length ? (
-              <p className="text-sm text-muted">
-                {sheets.map((sheet) => `${sheet.name}: ${pickedDisposition(sheet)}`).join(" · ")}
-              </p>
-            ) : null}
+            {main ? <p className="text-sm text-muted">Main disposition: {main}</p> : null}
           </div>
           <button type="button" onClick={onBack} className="min-h-11 shrink-0 rounded-lg border border-line px-3 py-2 text-sm">
             Back
@@ -253,6 +252,26 @@ export function PlayView({
           <p className="text-sm text-muted">No detachments selected.</p>
         ) : (
           <div className="flex flex-col gap-8">
+            {dispositionChoices.length > 1 ? (
+              <label className="flex w-fit max-w-full flex-col items-start text-xs text-muted">
+                Main disposition
+                <select
+                  aria-label="Main disposition"
+                  value={main ?? ""}
+                  onChange={(event) => onMainDisposition(event.target.value)}
+                  className="weapon-select mt-1 h-8 max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg"
+                >
+                  <option value="" disabled>
+                    Choose
+                  </option>
+                  {dispositionChoices.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             {sheets.map((sheet) => {
               const taken = enhancementsFor(sheet.id).filter((enhancement) =>
                 entries.some((entry) => entry.enhancement === enhancement.name),
@@ -265,25 +284,9 @@ export function PlayView({
                   </p>
                   <section>
                     <h3 className="text-xs tracking-wide text-gold uppercase">Force disposition</h3>
-                    {sheet.dispositions.length > 1 ? (
-                      <label className="mt-1 flex w-fit max-w-full flex-col items-start text-xs text-muted">
-                        Main disposition
-                        <select
-                          aria-label={`Main disposition for ${sheet.name}`}
-                          value={pickedDisposition(sheet)}
-                          onChange={(event) => onMainDisposition(sheet.id, event.target.value)}
-                          className="wargear-select mt-1 h-8 w-fit max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg"
-                        >
-                          {sheet.dispositions.map((disposition) => (
-                            <option key={disposition} value={disposition}>
-                              {disposition}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    ) : (
-                      <p className="mt-1 text-sm">{sheet.dispositions[0]}</p>
-                    )}
+                    <p className="mt-1 text-sm">
+                      {sheet.dispositions.map((name) => (name === main ? `${name} (Main)` : name)).join(", ")}
+                    </p>
                   </section>
                   {sheet.rule ? (
                     <section>

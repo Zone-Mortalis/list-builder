@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, X } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 import { datasheetById, KEYWORDS, type WeaponProfile } from "@/data/datasheets";
 import { explainTag, FLY_RULE } from "@/data/rules";
 import { gearGroups, gearLine, weaponTaken, type GearGroup } from "@/data/units";
@@ -111,7 +111,7 @@ export function WargearPicker({
   const groups = gearGroups(unitId);
   if (groups.length === 0) return null;
   return (
-    <div className="mt-2 flex w-full min-w-0 flex-col items-stretch gap-1.5">
+    <div className="mt-2 flex max-w-full min-w-0 flex-col items-start gap-1.5">
       {groups.map((group) => (
         <GearGroupControl key={group.id} group={group} gear={gear} onGear={onGear} />
       ))}
@@ -137,29 +137,43 @@ function GearGroupControl({
         type="button"
         aria-pressed={on}
         onClick={() => onGear(group.id, on ? "" : item.id)}
-        className={`flex h-8 w-fit max-w-full items-center gap-2 rounded-lg border px-2 text-left text-xs ${
-          on ? "border-gold bg-gold/10 text-fg" : "border-line text-muted"
+        className={`inline-flex max-w-full items-center gap-2 rounded-full border px-1 py-1 pr-3 text-left text-xs ${
+          on ? "border-gold bg-gold/15 text-fg" : "border-dashed border-line text-muted"
         }`}
       >
         <span
-          className={`flex size-4 shrink-0 items-center justify-center rounded border ${
-            on ? "border-gold bg-gold text-bg" : "border-line"
+          className={`grid size-6 shrink-0 place-items-center rounded-full border ${
+            on ? "border-gold bg-gold text-bg" : "border-line bg-bg text-muted"
           }`}
         >
-          {on ? <Check className="size-3" aria-hidden="true" /> : null}
+          {on ? <Check className="size-3.5" aria-hidden="true" /> : <Plus className="size-3.5" aria-hidden="true" />}
         </span>
-        <span>{item.name}</span>
-        {item.points ? <span className="text-gold">+{item.points} pts</span> : null}
+        <span className="min-w-0">{item.name}</span>
+        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] tracking-wide uppercase ${on ? "bg-gold text-bg" : "bg-raised text-muted"}`}>
+          {item.points ? `+${item.points} pts` : "Optional"}
+        </span>
       </button>
     );
   }
+  return <WeaponMenu group={group} gear={gear} onGear={onGear} />;
+}
+
+function WeaponMenu({
+  group,
+  gear,
+  onGear,
+}: {
+  group: GearGroup;
+  gear?: Record<string, string>;
+  onGear: (groupId: string, choiceId: string) => void;
+}) {
   const selected = gear?.[group.id] ?? group.choices[0]?.id ?? "";
   return (
     <select
       aria-label="Weapon"
       value={selected}
       onChange={(event) => onGear(group.id, event.target.value)}
-      className="wargear-select h-8 w-full max-w-64 min-w-0 rounded-lg border border-line bg-bg px-2 text-xs text-fg"
+      className="weapon-select h-8 max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg"
     >
       {group.choices.map((item) => (
         <option key={item.id} value={item.id}>

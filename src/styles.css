@@ -80,9 +80,13 @@ textarea {
   font-size: 16px;
 }
 
-select.wargear-select {
+select.wargear-select,
+select.weapon-select {
   font-size: 13px;
   min-width: 0;
+  width: fit-content;
+  max-width: 100%;
+  field-sizing: content;
 }
 
 html[data-motion="off"] button:not(:disabled),

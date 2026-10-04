@@ -53,7 +53,7 @@ type Roster = {
   name: string;
   limit: number;
   detachments: string[];
-  mainDispositions?: Record<string, string>;
+  mainDisposition?: string;
   warlordId?: string;
   building: boolean;
   entries: Entry[];
@@ -161,19 +161,23 @@ function settle(roster: Roster): Roster {
     : characters.length === 1
       ? characters[0]!.id
       : undefined;
-  return { ...roster, warlordId, mainDispositions: cleanMainDispositions(roster.detachments, roster.mainDispositions), entries: arrange(entries, warlordId) };
+  return { ...roster, warlordId, mainDisposition: cleanMainDisposition(roster.detachments, roster.mainDisposition), entries: arrange(entries, warlordId) };
 }
 
-function cleanMainDispositions(detachments: readonly string[], raw?: Record<string, string>) {
-  if (!raw) return undefined;
-  const next: Record<string, string> = {};
+function dispositionChoices(detachments: readonly string[]): string[] {
+  const choices: string[] = [];
   for (const id of detachments) {
-    const sheet = detachmentById(id);
-    const value = raw[id];
-    if (!sheet || sheet.dispositions.length < 2 || !value || !sheet.dispositions.includes(value)) continue;
-    next[id] = value;
+    for (const name of detachmentById(id)?.dispositions ?? []) {
+      if (!choices.includes(name)) choices.push(name);
+    }
   }
-  return Object.keys(next).length ? next : undefined;
+  return choices;
+}
+
+function cleanMainDisposition(detachments: readonly string[], value?: string) {
+  const choices = dispositionChoices(detachments);
+  if (value && choices.includes(value)) return value;
+  return choices.length === 1 ? choices[0] : undefined;
 }
 
 function enhancementSlots(entries: Entry[], exceptId?: string): Set<string> {
@@ -270,17 +274,16 @@ function rosterFrom(parsed: Partial<Roster> | null): Roster {
     }
     seenEnhancements.add(enhancement.id);
   }
+  const stored = parsed as Partial<Roster> & { mainDispositions?: Record<string, unknown> };
+  const legacyMain = stored.mainDispositions
+    ? Object.values(stored.mainDispositions).find((value): value is string => typeof value === "string")
+    : undefined;
   const warlordId = typeof parsed.warlordId === "string" ? parsed.warlordId : undefined;
   return settle({
     name: typeof parsed.name === "string" && parsed.name.trim() ? parsed.name : EMPTY.name,
     limit: typeof parsed.limit === "number" && parsed.limit > 0 ? parsed.limit : EMPTY.limit,
     detachments,
-    mainDispositions:
-      parsed.mainDispositions && typeof parsed.mainDispositions === "object" && !Array.isArray(parsed.mainDispositions)
-        ? Object.fromEntries(
-            Object.entries(parsed.mainDispositions).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
-          )
-        : undefined,
+    mainDisposition: typeof parsed.mainDisposition === "string" ? parsed.mainDisposition : legacyMain,
     warlordId,
     building: parsed.building === true,
     entries,
@@ -331,11 +334,15 @@ function orderedDetachments(unique: boolean) {
 
 function DetachmentChoices({
   selected,
+  mainDisposition,
   onToggle,
+  onMainDisposition,
   onRules,
 }: {
   selected: string[];
+  mainDisposition?: string;
   onToggle: (id: string) => void;
+  onMainDisposition: (disposition: string) => void;
   onRules: (id: string) => void;
 }) {
   const guardians = selected.includes("guardians");
@@ -344,8 +351,36 @@ function DetachmentChoices({
     { title: "Shield Hosts", hint: "Only one of these can be taken.", items: orderedDetachments(true) },
     { title: "Other detachments", hint: "These can be combined with each other, and with one unique.", items: orderedDetachments(false) },
   ];
+  const choices = dispositionChoices(selected);
   return (
     <div className="flex flex-col gap-6">
+      {choices.length > 0 ? (
+        <section>
+          <h2 className="font-display text-lg">Main disposition</h2>
+          {choices.length > 1 ? (
+            <label className="mt-2 flex w-fit max-w-full flex-col items-start text-xs text-muted">
+              Choose one from the detachments below
+              <select
+                aria-label="Main disposition"
+                value={mainDisposition && choices.includes(mainDisposition) ? mainDisposition : ""}
+                onChange={(event) => onMainDisposition(event.target.value)}
+                className="weapon-select mt-1 h-8 max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg"
+              >
+                <option value="" disabled>
+                  Choose
+                </option>
+                {choices.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <p className="mt-1 text-sm">{choices[0]}</p>
+          )}
+        </section>
+      ) : null}
       {groups.map((group) => (
         <section key={group.title}>
           <h2 className="font-display text-lg">{group.title}</h2>
@@ -378,7 +413,9 @@ function DetachmentChoices({
                       {detachment.unique ? "Shield Host" : "Detachment"}
                       {detachment.rule ? ` · ${detachment.rule.name}` : ""}
                     </span>
-                    <span className="mt-1 text-xs text-muted">{detachment.dispositions.join(", ")}</span>
+                    <span className="mt-1 text-xs text-muted">
+                      Force disposition: {detachment.dispositions.join(", ")}
+                    </span>
                   </button>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
@@ -591,13 +628,8 @@ export function ListBuilder() {
     });
   }
 
-  function setMainDisposition(id: string, disposition: string) {
-    setRoster((current) =>
-      settle({
-        ...current,
-        mainDispositions: { ...current.mainDispositions, [id]: disposition },
-      }),
-    );
+  function setMainDisposition(disposition: string) {
+    setRoster((current) => settle({ ...current, mainDisposition: disposition }));
   }
 
   function setWarlord(id: string) {
@@ -852,7 +884,9 @@ export function ListBuilder() {
         </header>
         <DetachmentChoices
           selected={roster.detachments}
+          mainDisposition={roster.mainDisposition}
           onToggle={toggleDetachment}
+          onMainDisposition={setMainDisposition}
           onRules={(id) => setRulesIds([id])}
         />
         <div className="fixed inset-x-0 bottom-0 border-t border-line bg-bg pb-[env(safe-area-inset-bottom)]">
@@ -900,7 +934,8 @@ export function ListBuilder() {
         total={total}
         limit={roster.limit}
         detachments={roster.detachments}
-        mainDispositions={roster.mainDispositions}
+        mainDisposition={roster.mainDisposition}
+        dispositionChoices={dispositionChoices(roster.detachments)}
         onMainDisposition={setMainDisposition}
         entries={playEntries}
         onBack={() => setScreen("units")}
