@@ -595,6 +595,19 @@ export function ListBuilder() {
     });
   }
 
+  function setEntryGear(entryId: string, groupId: string, choiceId: string) {
+    setRoster((current) => ({
+      ...current,
+      entries: current.entries.map((entry) => {
+        if (entry.id !== entryId) return entry;
+        const next = { ...(entry.gear ?? {}) };
+        if (!choiceId) delete next[groupId];
+        else next[groupId] = choiceId;
+        return { ...entry, gear: cleanGear(entry.unitId, next) };
+      }),
+    }));
+  }
+
   function setEnhancement(entryId: string, enhancementId: string) {
     setRoster((current) => ({
       ...current,
@@ -1233,6 +1246,11 @@ export function ListBuilder() {
                     <p className="shrink-0 text-sm text-gold tabular-nums">{entry.cost} pts</p>
                   </div>
                   {kit ? <p className="mt-1 text-xs break-words text-muted">{kit}</p> : null}
+                  <WargearPicker
+                    unitId={entry.unitId}
+                    gear={entry.gear}
+                    onGear={(groupId, choiceId) => setEntryGear(entry.id, groupId, choiceId)}
+                  />
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     {character ? (
                       <button

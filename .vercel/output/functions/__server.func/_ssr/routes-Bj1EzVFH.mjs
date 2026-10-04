@@ -1,7 +1,7 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { K as require_react, b as require_jsx_runtime } from "../_libs/@tanstack/react-router+[...].mjs";
 import { a as Minus, c as Check, i as Plus, o as Crown, r as Trash2, s as ChevronDown, t as X } from "../_libs/lucide-react.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-D4QjbtJu.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-Bj1EzVFH.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var gun = (name, tags, range, a, bs, s, ap, d) => ({
@@ -4096,6 +4096,21 @@ function ListBuilder() {
 			};
 		});
 	}
+	function setEntryGear(entryId, groupId, choiceId) {
+		setRoster((current) => ({
+			...current,
+			entries: current.entries.map((entry) => {
+				if (entry.id !== entryId) return entry;
+				const next = { ...entry.gear ?? {} };
+				if (!choiceId) delete next[groupId];
+				else next[groupId] = choiceId;
+				return {
+					...entry,
+					gear: cleanGear(entry.unitId, next)
+				};
+			})
+		}));
+	}
 	function setEnhancement(entryId, enhancementId) {
 		setRoster((current) => ({
 			...current,
@@ -4806,6 +4821,11 @@ function ListBuilder() {
 									className: "mt-1 text-xs break-words text-muted",
 									children: kit
 								}) : null,
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WargearPicker, {
+									unitId: entry.unitId,
+									gear: entry.gear,
+									onGear: (groupId, choiceId) => setEntryGear(entry.id, groupId, choiceId)
+								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "mt-2 flex flex-wrap items-center gap-2",
 									children: [
