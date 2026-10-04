@@ -249,6 +249,19 @@ export function unitCategory(unit: Unit, detachments: readonly string[]): string
   return unit.category;
 }
 
+/** How many units from a filter can be in one army. Unlisted filters use the per-unit copy rules only. */
+export const CATEGORY_LIMITS: Record<string, number> = {
+  "Imperial Agents": 2,
+  "Imperial Retinue": 2,
+  Knights: 1,
+  Armigers: 3,
+  Titans: 1,
+};
+
+export function categoryLimit(category: string): number | undefined {
+  return CATEGORY_LIMITS[category];
+}
+
 export function copyLimit(unit: Unit, detachments: readonly string[] = []): number {
   if (unit.maxCopies != null) return unit.maxCopies;
   if (unit.battleline || (unit.id === "prosecutors" && detachments.includes("vigil"))) return 6;

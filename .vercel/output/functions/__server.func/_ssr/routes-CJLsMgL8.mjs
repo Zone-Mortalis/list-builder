@@ -1,7 +1,7 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { K as require_react, b as require_jsx_runtime } from "../_libs/@tanstack/react-router+[...].mjs";
 import { a as Minus, c as Check, i as Plus, o as Crown, r as Trash2, s as ChevronDown, t as X } from "../_libs/lucide-react.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-BA7Iyzw1.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-CJLsMgL8.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var gun = (name, tags, range, a, bs, s, ap, d) => ({
@@ -2052,6 +2052,17 @@ var UNITS = [
 function unitCategory(unit, detachments) {
 	if (unit.id === "prosecutors" && detachments.includes("vigil")) return "Battleline";
 	return unit.category;
+}
+/** How many units from a filter can be in one army. Unlisted filters use the per-unit copy rules only. */
+var CATEGORY_LIMITS = {
+	"Imperial Agents": 2,
+	"Imperial Retinue": 2,
+	Knights: 1,
+	Armigers: 3,
+	Titans: 1
+};
+function categoryLimit(category) {
+	return CATEGORY_LIMITS[category];
 }
 function copyLimit(unit, detachments = []) {
 	if (unit.maxCopies != null) return unit.maxCopies;
@@ -4358,9 +4369,18 @@ function price(entries) {
 		}];
 	});
 }
+function categoryCount(category, entries, detachments) {
+	return entries.filter((entry) => {
+		const unit = unitById(entry.unitId);
+		return unit != null && unitCategory(unit, detachments) === category;
+	}).length;
+}
 function nextCost(unit, models, entries, detachments) {
 	const ofUnit = entries.filter((entry) => entry.unitId === unit.id).length;
 	if (ofUnit >= copyLimit(unit, detachments)) return null;
+	const category = unitCategory(unit, detachments);
+	const cap = categoryLimit(category);
+	if (cap != null && categoryCount(category, entries, detachments) >= cap) return null;
 	if (!sizeOf(unit, models)) return null;
 	return squadCost(unit, models, ofUnit);
 }
@@ -4391,13 +4411,19 @@ function arrange(entries, warlordId) {
 function settle(roster) {
 	const ordered = [...roster.entries].sort((left, right) => (left.addedAt ?? 0) - (right.addedAt ?? 0) || left.id.localeCompare(right.id));
 	const counts = /* @__PURE__ */ new Map();
+	const categoryCounts = /* @__PURE__ */ new Map();
 	const keepIds = /* @__PURE__ */ new Set();
 	for (const entry of ordered) {
 		const unit = unitById(entry.unitId);
 		if (!unit) continue;
 		const count = counts.get(entry.unitId) ?? 0;
 		if (count >= copyLimit(unit, roster.detachments)) continue;
+		const category = unitCategory(unit, roster.detachments);
+		const cap = categoryLimit(category);
+		const inCategory = categoryCounts.get(category) ?? 0;
+		if (cap != null && inCategory >= cap) continue;
 		counts.set(entry.unitId, count + 1);
+		categoryCounts.set(category, inCategory + 1);
 		keepIds.add(entry.id);
 	}
 	const kept = roster.entries.filter((entry) => keepIds.has(entry.id));
@@ -5323,126 +5349,139 @@ function ListBuilder() {
 				className: "grid min-w-0 gap-4",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 					className: `min-w-0 ${panel === "list" ? "hidden" : "section-open"}`,
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "flex min-w-0 gap-2 overflow-x-auto border-b border-line py-3",
-						children: ["All", ...CATEGORIES].map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							type: "button",
-							onClick: () => setCategory(item),
-							className: `min-h-11 shrink-0 rounded-full border px-3 text-sm ${category === item ? "border-gold bg-gold text-bg" : "border-line text-muted"}`,
-							children: item
-						}, item))
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "min-w-0",
-						children: visible.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "py-6 text-sm text-muted",
-							children: "Nothing matches."
-						}) : visible.map((unit) => {
-							const models = chosenModels(unit);
-							sizeOf(unit, models);
-							const upcoming = nextCost(unit, models, roster.entries, roster.detachments);
-							const gearCost = gearPoints(unit.id, draftGear[unit.id]);
-							const shown = upcoming == null ? null : upcoming + gearCost;
-							const taken = roster.entries.filter((entry) => entry.unitId === unit.id).length;
-							const nextLine = upcoming == null ? null : priceLine(unit, models, taken, { wargear: gearCost });
-							return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
-								className: "min-w-0 border-b border-line py-4 last:border-b-0",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "flex items-start justify-between gap-3",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "min-w-0",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-												className: "text-base leading-snug font-medium break-words",
-												children: unit.name
-											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-												className: "mt-0.5 text-xs text-muted",
-												children: unitCategory(unit, roster.detachments)
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "flex min-w-0 gap-2 overflow-x-auto border-b border-line py-3",
+							children: ["All", ...CATEGORIES].map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								type: "button",
+								onClick: () => setCategory(item),
+								className: `min-h-11 shrink-0 rounded-full border px-3 text-sm ${category === item ? "border-gold bg-gold text-bg" : "border-line text-muted"}`,
+								children: item
+							}, item))
+						}),
+						category !== "All" && categoryLimit(category) != null ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: "pt-2 text-xs text-muted",
+							children: [
+								categoryCount(category, roster.entries, roster.detachments),
+								" of ",
+								categoryLimit(category),
+								" ",
+								category
+							]
+						}) : null,
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "min-w-0",
+							children: visible.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "py-6 text-sm text-muted",
+								children: "Nothing matches."
+							}) : visible.map((unit) => {
+								const models = chosenModels(unit);
+								sizeOf(unit, models);
+								const upcoming = nextCost(unit, models, roster.entries, roster.detachments);
+								const gearCost = gearPoints(unit.id, draftGear[unit.id]);
+								const shown = upcoming == null ? null : upcoming + gearCost;
+								const taken = roster.entries.filter((entry) => entry.unitId === unit.id).length;
+								const nextLine = upcoming == null ? null : priceLine(unit, models, taken, { wargear: gearCost });
+								return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
+									className: "min-w-0 border-b border-line py-4 last:border-b-0",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex items-start justify-between gap-3",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "min-w-0",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+													className: "text-base leading-snug font-medium break-words",
+													children: unit.name
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+													className: "mt-0.5 text-xs text-muted",
+													children: unitCategory(unit, roster.detachments)
+												})]
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+												type: "button",
+												disabled: shown == null,
+												onClick: () => add(unit, models),
+												className: "inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg bg-gold px-3 text-sm font-medium text-bg disabled:opacity-40",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, {
+													className: "size-4",
+													"aria-hidden": "true"
+												}), shown == null ? "Max" : `${shown} pts`]
 											})]
-										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										}),
+										unit.sizes.length > 1 || unit.sizes[0].models > 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "mt-3 flex items-center gap-2",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													type: "button",
+													"aria-label": `Fewer ${unit.name} models`,
+													disabled: unit.sizes.findIndex((option) => option.models === models) <= 0,
+													onClick: () => {
+														const index = unit.sizes.findIndex((option) => option.models === models);
+														const next = unit.sizes[index - 1];
+														if (!next) return;
+														setSizes((current) => ({
+															...current,
+															[unit.id]: next.models
+														}));
+													},
+													className: "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-line text-fg disabled:opacity-40",
+													children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Minus, {
+														className: "size-4",
+														"aria-hidden": "true"
+													})
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+													className: "min-w-12 text-center text-sm tabular-nums",
+													children: ["x", models]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													type: "button",
+													"aria-label": `More ${unit.name} models`,
+													disabled: unit.sizes.findIndex((option) => option.models === models) >= unit.sizes.length - 1,
+													onClick: () => {
+														const index = unit.sizes.findIndex((option) => option.models === models);
+														const next = unit.sizes[index + 1];
+														if (!next) return;
+														setSizes((current) => ({
+															...current,
+															[unit.id]: next.models
+														}));
+													},
+													className: "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-line text-fg disabled:opacity-40",
+													children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, {
+														className: "size-4",
+														"aria-hidden": "true"
+													})
+												})
+											]
+										}) : null,
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-2 text-xs break-words text-muted",
+											children: nextLine ?? costNote(unit, models, copyLimit(unit, roster.detachments))
+										}),
+										attachSummary(unit.id) || unit.note ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 text-xs text-muted",
+											children: [attachSummary(unit.id), unit.note].filter(Boolean).join(" · ")
+										}) : null,
+										armedWith(unit.id) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-2 text-xs text-muted",
+											children: armedWith(unit.id)
+										}) : null,
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WargearPicker, {
+											unitId: unit.id,
+											gear: draftGear[unit.id],
+											onGear: (groupId, choiceId) => setDraft(unit.id, groupId, choiceId)
+										}),
+										datasheetById(unit.id) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 											type: "button",
-											disabled: shown == null,
-											onClick: () => add(unit, models),
-											className: "inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg bg-gold px-3 text-sm font-medium text-bg disabled:opacity-40",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, {
-												className: "size-4",
-												"aria-hidden": "true"
-											}), shown == null ? "Max" : `${shown} pts`]
-										})]
-									}),
-									unit.sizes.length > 1 || unit.sizes[0].models > 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "mt-3 flex items-center gap-2",
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												type: "button",
-												"aria-label": `Fewer ${unit.name} models`,
-												disabled: unit.sizes.findIndex((option) => option.models === models) <= 0,
-												onClick: () => {
-													const index = unit.sizes.findIndex((option) => option.models === models);
-													const next = unit.sizes[index - 1];
-													if (!next) return;
-													setSizes((current) => ({
-														...current,
-														[unit.id]: next.models
-													}));
-												},
-												className: "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-line text-fg disabled:opacity-40",
-												children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Minus, {
-													className: "size-4",
-													"aria-hidden": "true"
-												})
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-												className: "min-w-12 text-center text-sm tabular-nums",
-												children: ["x", models]
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												type: "button",
-												"aria-label": `More ${unit.name} models`,
-												disabled: unit.sizes.findIndex((option) => option.models === models) >= unit.sizes.length - 1,
-												onClick: () => {
-													const index = unit.sizes.findIndex((option) => option.models === models);
-													const next = unit.sizes[index + 1];
-													if (!next) return;
-													setSizes((current) => ({
-														...current,
-														[unit.id]: next.models
-													}));
-												},
-												className: "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-line text-fg disabled:opacity-40",
-												children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, {
-													className: "size-4",
-													"aria-hidden": "true"
-												})
-											})
-										]
-									}) : null,
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mt-2 text-xs break-words text-muted",
-										children: nextLine ?? costNote(unit, models, copyLimit(unit, roster.detachments))
-									}),
-									attachSummary(unit.id) || unit.note ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mt-1 text-xs text-muted",
-										children: [attachSummary(unit.id), unit.note].filter(Boolean).join(" · ")
-									}) : null,
-									armedWith(unit.id) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mt-2 text-xs text-muted",
-										children: armedWith(unit.id)
-									}) : null,
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WargearPicker, {
-										unitId: unit.id,
-										gear: draftGear[unit.id],
-										onGear: (groupId, choiceId) => setDraft(unit.id, groupId, choiceId)
-									}),
-									datasheetById(unit.id) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										type: "button",
-										onClick: () => setSheet({ unitId: unit.id }),
-										className: "mt-1 inline-flex min-h-11 items-center text-xs text-gold",
-										children: "Datasheet"
-									}) : null
-								]
-							}, unit.id);
+											onClick: () => setSheet({ unitId: unit.id }),
+											className: "mt-1 inline-flex min-h-11 items-center text-xs text-gold",
+											children: "Datasheet"
+										}) : null
+									]
+								}, unit.id);
+							})
 						})
-					})]
+					]
 				}, panel === "units" ? "units" : "units-hidden"), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 					className: panel === "units" ? "hidden" : "section-open",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {

@@ -24,6 +24,7 @@ import {
   canLead,
   armedWith,
   cleanGear,
+  categoryLimit,
   copyLimit,
   costNote,
   gearLine,
@@ -98,9 +99,19 @@ function price(entries: Entry[]): Priced[] {
   });
 }
 
+function categoryCount(category: string, entries: Entry[], detachments: readonly string[]): number {
+  return entries.filter((entry) => {
+    const unit = unitById(entry.unitId);
+    return unit != null && unitCategory(unit, detachments) === category;
+  }).length;
+}
+
 function nextCost(unit: Unit, models: number, entries: Entry[], detachments: readonly string[]): number | null {
   const ofUnit = entries.filter((entry) => entry.unitId === unit.id).length;
   if (ofUnit >= copyLimit(unit, detachments)) return null;
+  const category = unitCategory(unit, detachments);
+  const cap = categoryLimit(category);
+  if (cap != null && categoryCount(category, entries, detachments) >= cap) return null;
   if (!sizeOf(unit, models)) return null;
   return squadCost(unit, models, ofUnit);
 }
@@ -142,13 +153,19 @@ function settle(roster: Roster): Roster {
     (left, right) => (left.addedAt ?? 0) - (right.addedAt ?? 0) || left.id.localeCompare(right.id),
   );
   const counts = new Map<string, number>();
+  const categoryCounts = new Map<string, number>();
   const keepIds = new Set<string>();
   for (const entry of ordered) {
     const unit = unitById(entry.unitId);
     if (!unit) continue;
     const count = counts.get(entry.unitId) ?? 0;
     if (count >= copyLimit(unit, roster.detachments)) continue;
+    const category = unitCategory(unit, roster.detachments);
+    const cap = categoryLimit(category);
+    const inCategory = categoryCounts.get(category) ?? 0;
+    if (cap != null && inCategory >= cap) continue;
     counts.set(entry.unitId, count + 1);
+    categoryCounts.set(category, inCategory + 1);
     keepIds.add(entry.id);
   }
   const kept = roster.entries.filter((entry) => keepIds.has(entry.id));
@@ -1092,6 +1109,11 @@ export function ListBuilder() {
                 </button>
               ))}
             </div>
+          {category !== "All" && categoryLimit(category) != null ? (
+            <p className="pt-2 text-xs text-muted">
+              {categoryCount(category, roster.entries, roster.detachments)} of {categoryLimit(category)} {category}
+            </p>
+          ) : null}
           <div className="min-w-0">
             {visible.length === 0 ? (
               <p className="py-6 text-sm text-muted">Nothing matches.</p>
