@@ -120,7 +120,7 @@ function renderWebManifest(hostHeader) {
 		id: "/",
 		start_url: "/",
 		scope: "/",
-		display: "standalone",
+		display: "browser",
 		background_color: "#000000",
 		theme_color: "#000000",
 		icons: [{
