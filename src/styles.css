@@ -1,0 +1,198 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #110e0a;
+  --color-surface: #1b1611;
+  --color-raised: #261f17;
+  --color-fg: #f3eadc;
+  --color-muted: #a89880;
+  --color-gold: #d4b36a;
+  --color-line: #3c3226;
+  --color-danger: #d46a55;
+  --font-display: "Cinzel", serif;
+  --font-sans: "Outfit", system-ui, sans-serif;
+  --radius-lg: 0.75rem;
+}
+
+@layer base {
+  html {
+    max-width: 100%;
+    overflow-x: hidden;
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    button:not(:disabled),
+    [role="button"]:not(:disabled) {
+      transition: transform 90ms ease, filter 90ms ease;
+    }
+
+    button:not(:disabled):active,
+    [role="button"]:not(:disabled):active {
+      transform: scale(0.96);
+      filter: brightness(0.92);
+    }
+
+    html:not([data-motion="on"]) .page-enter {
+      animation: page-in 240ms ease;
+    }
+
+    html:not([data-motion="on"]) .section-open {
+      animation: section-in 220ms ease;
+    }
+
+    html:not([data-motion="on"]) .sheet-backdrop {
+      animation: sheet-fade 180ms ease;
+    }
+
+    html:not([data-motion="on"]) .sheet-panel {
+      animation: sheet-up 240ms ease;
+    }
+  }
+
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  input,
+  select,
+  textarea {
+    font: inherit;
+    max-width: 100%;
+  }
+}
+
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+select.wargear-select {
+  font-size: 13px;
+}
+
+html[data-motion="off"] button:not(:disabled),
+html[data-motion="off"] [role="button"]:not(:disabled) {
+  transition: transform 90ms ease, filter 90ms ease;
+}
+
+html[data-motion="off"] button:not(:disabled):active,
+html[data-motion="off"] [role="button"]:not(:disabled):active {
+  transform: scale(0.96);
+  filter: brightness(0.92);
+}
+
+html[data-motion="off"] .page-enter {
+  animation: page-in 240ms ease;
+}
+
+html[data-motion="off"] .section-open {
+  animation: section-in 220ms ease;
+}
+
+html[data-motion="off"] .sheet-backdrop {
+  animation: sheet-fade 180ms ease;
+}
+
+html[data-motion="off"] .sheet-panel {
+  animation: sheet-up 240ms ease;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes section-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+html[data-motion="on"] button,
+html[data-motion="on"] [role="button"] {
+  transition: none;
+}
+
+html[data-motion="on"] button:active,
+html[data-motion="on"] [role="button"]:active {
+  transform: none;
+  filter: none;
+}
+
+html[data-theme="marble"] {
+  --color-bg: #f4efe6;
+  --color-surface: #fffaf3;
+  --color-raised: #e7dfd2;
+  --color-fg: #1c1610;
+  --color-muted: #6d6256;
+  --color-gold: #8a6a2f;
+  --color-line: #d9d0c3;
+  --color-danger: #a33b2b;
+}
+
+html[data-theme="night"] {
+  --color-bg: #0c1016;
+  --color-surface: #141a24;
+  --color-raised: #1c2432;
+  --color-fg: #e7eef8;
+  --color-muted: #8ea0b8;
+  --color-gold: #7eb0d6;
+  --color-line: #2c3848;
+  --color-danger: #e07a6a;
+}
+
+html[data-theme="amethyst"] {
+  --color-bg: #100c14;
+  --color-surface: #1a1422;
+  --color-raised: #241c2e;
+  --color-fg: #f3eaf8;
+  --color-muted: #b09cbd;
+  --color-gold: #c9a46a;
+  --color-line: #3a2e48;
+  --color-danger: #e07a8a;
+}

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Custodes List Builder</title>
+<style>
+  :root {
+    --bg: #12100c;
+    --panel: #1c1812;
+    --panel-2: #261f16;
+    --line: #3d3224;
+    --gold: #d4b46a;
+    --gold-2: #f0d89a;
+    --ink: #f4efe4;
+    --muted: #b3a58d;
+    --danger: #e06a5c;
+    --ok: #8fbf7a;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Georgia, sans-serif;
+    background:
+      radial-gradient(1200px 500px at 10% -10%, rgba(212,180,106,.16), transparent 50%),
+      var(--bg);
+    color: var(--ink);
+  }
+  header {
+    padding: 22px 28px 10px;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: end;
+    flex-wrap: wrap;
+  }
+  h1 {
+    margin: 0;
+    font-family: Georgia, serif;
+    font-weight: 500;
+    letter-spacing: .04em;
+    font-size: 28px;
+  }
+  h1 span { color: var(--gold-2); }
+  .sub { color: var(--muted); margin-top: 4px; font-size: 13px; }
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: end;
+  }
+  label { display: block; font-size: 11px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
+  input, select, button {
+    background: var(--panel);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font: inherit;
+  }
+  input:focus, select:focus { outline: 1px solid var(--gold); }
+  button {
+    cursor: pointer;
+    background: #3a2e1c;
+    color: var(--gold-2);
+  }
+  button:hover { border-color: var(--gold); }
+  button.ghost { background: transparent; color: var(--muted); }
+  .layout {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 16px;
+    padding: 12px 28px 28px;
+  }
+  @media (max-width: 980px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: rgba(28,24,18,.92);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .panel h2 {
+    margin: 0;
+    padding: 14px 16px;
+    font-size: 14px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--gold);
+    border-bottom: 1px solid var(--line);
+  }
+  .filters { display: flex; gap: 8px; padding: 12px 16px; flex-wrap: wrap; }
+  .chip {
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  .chip.on { color: #1a140c; background: var(--gold); border-color: var(--gold); }
+  .catalog { max-height: 72vh; overflow: auto; }
+  .unit {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid rgba(61,50,36,.7);
+    align-items: center;
+  }
+  .unit:hover { background: rgba(212,180,106,.06); }
+  .name { font-size: 14px; }
+  .meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .pts { color: var(--gold-2); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .add {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    align-items: center;
+  }
+  .total { font-size: 28px; font-variant-numeric: tabular-nums; font-family: Georgia, serif; }
+  .total.over { color: var(--danger); }
+  .total.ok { color: var(--ok); }
+  .list { min-height: 280px; }
+  .entry {
+    display: grid;
+    grid-template-columns: 1fr 120px 90px 36px;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 16px;
+    border-top: 1px solid rgba(61,50,36,.7);
+  }
+  .entry select, .entry input { width: 100%; }
+  .empty { color: var(--muted); padding: 28px 16px; }
+  .enh {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .foot {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px 16px;
+    flex-wrap: wrap;
+  }
+  textarea {
+    width: calc(100% - 32px);
+    margin: 0 16px 16px;
+    min-height: 140px;
+    background: #0e0c09;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+  }
+  .note { color: var(--muted); font-size: 12px; padding: 0 16px 12px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Adeptus <span>Custodes</span> List Builder</h1>
+    <div class="sub">Points taken from your sheet. First, Second, and Third are separate cost columns. Rhino also has a Fourth cost.</div>
+  </div>
+  <div class="controls">
+    <div>
+      <label>Army name</label>
+      <input id="armyName" value="Shield Host" />
+    </div>
+    <div>
+      <label>Detachment</label>
+      <select id="detachment"></select>
+    </div>
+    <div>
+      <label>Points limit</label>
+      <input id="limit" type="number" min="0" step="5" value="2000" style="width:100px" />
+    </div>
+    <div>
+      <label>Cost column</label>
+      <select id="column">
+        <option value="0">First</option>
+        <option value="1">Second</option>
+        <option value="2">Third</option>
+        <option value="3">Fourth (Rhino only)</option>
+      </select>
+    </div>
+  </div>
+</header>
+<div class="layout">
+  <section class="panel">
+    <h2>Datasheets</h2>
+    <div class="filters">
+      <input id="search" placeholder="Search units" style="flex:1" />
+    </div>
+    <div class="filters" id="cats"></div>
+    <div class="catalog" id="catalog"></div>
+  </section>
+  <section class="panel">
+    <h2>Army list</h2>
+    <div class="summary">
+      <div>
+        <div class="sub" id="detLabel">Detachment</div>
+        <div class="total" id="total">0</div>
+      </div>
+      <div style="text-align:right">
+        <div class="sub">Remaining</div>
+        <div class="total" id="remain">2000</div>
+      </div>
+    </div>
+    <div class="list" id="list"></div>
+    <div class="foot">
+      <button id="copy">Copy list</button>
+      <button id="save">Save in browser</button>
+      <button id="load">Load saved</button>
+      <button class="ghost" id="clear">Clear</button>
+    </div>
+    <div class="note">Enhancements only appear for the selected detachment, and only on characters. Trajann is named and cannot take one. Each character can hold one enhancement.</div>
+    <textarea id="export" readonly placeholder="Your list text will appear here."></textarea>
+  </section>
+</div>
+<script>
+const UNITS = [
+  { name: "Trajann Valoris", cat: "Characters", costs: [265, null, null], character: true, named: true },
+  { name: "Shield-Captain", cat: "Characters", costs: [180, 200, 200], character: true },
+  { name: "Shield-Captain (+shield)", cat: "Characters", costs: [205, 225, 225], character: true },
+  { name: "Shield-Captain Allarus", cat: "Characters", costs: [185, 205, 205], character: true },
+  { name: "Shield-Captain jetbike", cat: "Characters", costs: [205, 225, 225], character: true },
+  { name: "Blade Champion", cat: "Characters", costs: [175, 175, 195], character: true },
+  { name: "Sentinel Guard Sodality x3", cat: "Guard", costs: [240, 240, 270], note: "Third column marked Spears" },
+  { name: "Custodian Guard Sodality x3", cat: "Guard", costs: [240, 240, 270] },
+  { name: "Custodian Wardens x2", cat: "Guard", costs: [200, 230, 230] },
+  { name: "Custodian Wardens x3", cat: "Guard", costs: [295, 325, 325] },
+  { name: "Allarus Custodians x2", cat: "Terminators", costs: [180, 180, 210] },
+  { name: "Allarus Custodians x3", cat: "Terminators", costs: [270, 270, 300] },
+  { name: "Aquilon Gauntlets x3", cat: "Terminators", costs: [285, 285, 315] },
+  { name: "Aquilon Talons x3", cat: "Terminators", costs: [275, 275, 305] },
+  { name: "Venatari (Kinetic Destroyers) x3", cat: "Jump", costs: [255, 255, 280], note: "Third column marked Pistols" },
+  { name: "Venatari (Verutum Lances) x3", cat: "Jump", costs: [270, 270, 300], note: "Third column marked Spears" },
+  { name: "Vertus Praetors x2", cat: "Bikes", costs: [220, 240, 240] },
+  { name: "Vertus Praetors x3", cat: "Bikes", costs: [330, 350, 350] },
+  { name: "Gyrfalcon jetbike Sodality x2", cat: "Bikes", costs: [260, 280, 280] },
+  { name: "Telemon", cat: "Dreadnoughts", costs: [280, 310, 310] },
+  { name: "Contemptor-Galatus", cat: "Dreadnoughts", costs: [220, 220, 250] },
+  { name: "Contemptor-Achillus", cat: "Dreadnoughts", costs: [230, 230, 260] },
+  { name: "Pallas Grav-Attack", cat: "Vehicles", costs: [135, 135, 135] },
+  { name: "Coronus Grav-Carrier", cat: "Vehicles", costs: [225, 225, 245] },
+  { name: "Caladius Grav-Tank", cat: "Vehicles", costs: [230, 230, 260] },
+  { name: "Caladius Annihilator", cat: "Vehicles", costs: [250, 250, 280] },
+  { name: "Knight Centura", cat: "Sisters", costs: [55, 55, 55], character: true },
+  { name: "Prosecutors x4", cat: "Sisters", costs: [45, 45, 45] },
+  { name: "Prosecutors x5", cat: "Sisters", costs: [50, 50, 50] },
+  { name: "Prosecutors x9", cat: "Sisters", costs: [80, 80, 80] },
+  { name: "Prosecutors x10", cat: "Sisters", costs: [90, 90, 90] },
+  { name: "Vigilators x4", cat: "Sisters", costs: [50, 50, 50] },
+  { name: "Vigilators x5", cat: "Sisters", costs: [55, 55, 55] },
+  { name: "Vigilators x9", cat: "Sisters", costs: [90, 90, 90] },
+  { name: "Vigilators x10", cat: "Sisters", costs: [100, 100, 100] },
+  { name: "Witchseekers x4", cat: "Sisters", costs: [55, 55, 55] },
+  { name: "Witchseekers x5", cat: "Sisters", costs: [60, 60, 60] },
+  { name: "Witchseekers x9", cat: "Sisters", costs: [100, 100, 100] },
+  { name: "Witchseekers x10", cat: "Sisters", costs: [110, 110, 110] },
+  { name: "Psykana Rhino", cat: "Sisters", costs: [70, 70, 70, 80] }
+];
+
+const ENH = [
+  ["Bane of Abominations", "Guardians of the Throne", 20],
+  ["Eagle's Eye", "Guardians of the Throne", 25],
+  ["Castellan's Mark", "Guardians of the Throne", 30],
+  ["Emperor's Light", "Guardians of the Throne", 15],
+  ["Not a Shell Wasted", "Aquilan Shield", 10],
+  ["Pareldor's Caducatrix", "Aquilan Shield", 30],
+  ["Inspirational Exemplar", "Auric Champions", 10],
+  ["Superior Creation", "Auric Champions", 30],
+  ["Shroud of the Hidden Blade", "Auric Champions", 20],
+  ["Auric Exemplar", "Dread Host", 15],
+  ["Flawless Bladework", "Dread Host", 25],
+  ["Auriferous Orb", "Emissaries Imperatus", 20],
+  ["Edge of the Blade", "Emissaries Imperatus", 15],
+  ["From the Hall of Armouries", "Emperor's Chosen", 20],
+  ["Radiant Mantle", "Emperor's Chosen", 40],
+  ["Anti-Gravistic Mobility", "Grav-Assault Force", 15],
+  ["Combat Deployment", "Grav-Assault Force", 20],
+  ["Arae-Shrike", "Honoured Companions", 25],
+  ["Celeritous Sentries", "Honoured Companions", 15],
+  ["Fierce Conqueror", "Lions of the Emperor", 20],
+  ["Lightning Descent", "Lions of the Emperor", 20],
+  ["Augury Uplink", "Might of the Moritoi", 15],
+  ["Memento Moritoi", "Might of the Moritoi", 30],
+  ["Huntress' Eye", "Null Maiden Vigil", 10],
+  ["Oblivion Knight", "Null Maiden Vigil", 15],
+  ["Genalchemic Warding", "Shadowkeepers", 20],
+  ["Unstoppable Destroyer", "Shadowkeepers", 35],
+  ["Auric Eagle", "Solar Watch", 10],
+  ["Sally Forth", "Solar Watch", 30]
+];
+
+const COLS = ["First", "Second", "Third", "Fourth"];
+const state = { cat: "All", query: "", entries: [] };
+let uid = 1;
+
+const detachment = document.getElementById("detachment");
+const column = document.getElementById("column");
+const limit = document.getElementById("limit");
+const armyName = document.getElementById("armyName");
+
+const dets = [...new Set(ENH.map(e => e[1]))];
+dets.forEach(d => {
+  const o = document.createElement("option");
+  o.value = d; o.textContent = d;
+  detachment.appendChild(o);
+});
+
+const cats = ["All", ...new Set(UNITS.map(u => u.cat))];
+const catsEl = document.getElementById("cats");
+cats.forEach(c => {
+  const b = document.createElement("button");
+  b.className = "chip" + (c === "All" ? " on" : "");
+  b.textContent = c;
+  b.onclick = () => { state.cat = c; [...catsEl.children].forEach(x => x.classList.toggle("on", x.textContent === c)); renderCatalog(); };
+  catsEl.appendChild(b);
+});
+
+function costOf(unit, col) {
+  const c = unit.costs[col];
+  if (c == null) return unit.costs.find(x => x != null);
+  return c;
+}
+
+function renderCatalog() {
+  const q = state.query.toLowerCase();
+  const col = Number(column.value);
+  const el = document.getElementById("catalog");
+  el.innerHTML = "";
+  UNITS.filter(u => (state.cat === "All" || u.cat === state.cat) && u.name.toLowerCase().includes(q)).forEach(u => {
+    const row = document.createElement("div");
+    row.className = "unit";
+    const pts = u.costs.map((c, i) => c == null ? null : COLS[i] + " " + c).filter(Boolean).join(" · ");
+    row.innerHTML = `<div><div class="name">${u.name}</div><div class="meta">${u.cat}${u.note ? " · " + u.note : ""}<br>${pts}</div></div><div><div class="pts">${costOf(u, col)} pts</div><button class="add">Add</button></div>`;
+    row.querySelector("button").onclick = () => addUnit(u.name);
+    el.appendChild(row);
+  });
+}
+
+function addUnit(name) {
+  const unit = UNITS.find(u => u.name === name);
+  state.entries.push({ id: uid++, name, enh: "" });
+  renderList();
+}
+
+function entryCost(entry) {
+  const unit = UNITS.find(u => u.name === entry.name);
+  let pts = costOf(unit, Number(column.value));
+  if (entry.enh) {
+    const e = ENH.find(x => x[0] === entry.enh);
+    if (e) pts += e[2];
+  }
+  return pts;
+}
+
+function renderList() {
+  const list = document.getElementById("list");
+  const det = detachment.value;
+  list.innerHTML = "";
+  if (!state.entries.length) {
+    list.innerHTML = `<div class="empty">Add units from the left. Switch the cost column if you are using Second or Third points.</div>`;
+  }
+  state.entries.forEach(entry => {
+    const unit = UNITS.find(u => u.name === entry.name);
+    const row = document.createElement("div");
+    row.className = "entry";
+    const options = ENH.filter(e => e[1] === det).map(e => `<option value="${e[0]}" ${entry.enh === e[0] ? "selected" : ""}>${e[0]} (+${e[2]})</option>`).join("");
+    row.innerHTML = `
+      <div><strong>${entry.name}</strong><div class="meta">${unit.cat}</div></div>
+      <div class="pts">${entryCost(entry)} pts</div>
+      <div></div>
+      <button class="ghost" title="Remove">×</button>
+      ${unit.character && !unit.named ? `<div class="enh"><select data-enh><option value="">No enhancement</option>${options}</select></div>` : ""}
+    `;
+    row.querySelector("button").onclick = () => { state.entries = state.entries.filter(e => e.id !== entry.id); renderList(); };
+    const sel = row.querySelector("[data-enh]");
+    if (sel) sel.onchange = () => { entry.enh = sel.value; renderList(); };
+    list.appendChild(row);
+  });
+  const total = state.entries.reduce((s, e) => s + entryCost(e), 0);
+  const lim = Number(limit.value) || 0;
+  const remain = lim - total;
+  const totalEl = document.getElementById("total");
+  const remainEl = document.getElementById("remain");
+  totalEl.textContent = total;
+  remainEl.textContent = remain;
+  totalEl.className = "total " + (total > lim ? "over" : "ok");
+  remainEl.className = "total " + (remain < 0 ? "over" : "ok");
+  document.getElementById("detLabel").textContent = det + " · " + COLS[Number(column.value)] + " column";
+  document.getElementById("export").value = exportText();
+}
+
+function exportText() {
+  const lim = Number(limit.value) || 0;
+  const total = state.entries.reduce((s, e) => s + entryCost(e), 0);
+  const lines = [
+    armyName.value || "Army",
+    detachment.value + " — " + COLS[Number(column.value)] + " points column",
+    total + " / " + lim,
+    ""
+  ];
+  state.entries.forEach(e => {
+    lines.push(`${e.name}${e.enh ? " — " + e.enh : ""} [${entryCost(e)}]`);
+  });
+  return lines.join("\n");
+}
+
+document.getElementById("search").oninput = e => { state.query = e.target.value; renderCatalog(); };
+detachment.onchange = () => {
+  const allowed = new Set(ENH.filter(e => e[1] === detachment.value).map(e => e[0]));
+  state.entries.forEach(e => { if (e.enh && !allowed.has(e.enh)) e.enh = ""; });
+  renderList();
+};
+column.onchange = () => { renderCatalog(); renderList(); };
+limit.oninput = renderList;
+armyName.oninput = renderList;
+document.getElementById("copy").onclick = async () => {
+  const text = exportText();
+  document.getElementById("export").value = text;
+  try { await navigator.clipboard.writeText(text); } catch (err) { document.getElementById("export").select(); }
+};
+document.getElementById("clear").onclick = () => { state.entries = []; renderList(); };
+document.getElementById("save").onclick = () => {
+  localStorage.setItem("custodes-list", JSON.stringify({
+    name: armyName.value, det: detachment.value, limit: limit.value, col: column.value, entries: state.entries
+  }));
+};
+document.getElementById("load").onclick = () => {
+  const raw = localStorage.getItem("custodes-list");
+  if (!raw) return;
+  const data = JSON.parse(raw);
+  armyName.value = data.name || "";
+  detachment.value = data.det || detachment.value;
+  limit.value = data.limit || 2000;
+  column.value = data.col || 0;
+  state.entries = data.entries || [];
+  uid = Math.max(1, ...state.entries.map(e => e.id + 1));
+  renderCatalog();
+  renderList();
+};
+
+renderCatalog();
+renderList();
+</script>
+</body>
+</html>
