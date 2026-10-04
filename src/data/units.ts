@@ -264,6 +264,25 @@ export function costParts(
   };
 }
 
+export function priceLine(
+  unit: Unit,
+  models: number,
+  copyIndex: number,
+  extras?: { wargear?: number; enhancement?: number },
+): string {
+  const parts = costParts(unit, models, copyIndex);
+  if (!parts) return "";
+  const wargear = extras?.wargear ?? 0;
+  const enhancement = extras?.enhancement ?? 0;
+  const bits = [`${ordinal(copyIndex + 1)} unit ${parts.unit} pts`];
+  if (parts.additionalUnit) bits.push(`additional unit +${parts.additionalUnit} pts`);
+  if (parts.additionalModels) bits.push(`${models} models +${parts.additionalModels} pts`);
+  if (wargear) bits.push(`wargear +${wargear} pts`);
+  if (enhancement) bits.push(`enhancement +${enhancement} pts`);
+  const total = parts.unit + parts.additionalUnit + parts.additionalModels + wargear + enhancement;
+  return `${bits.join(" · ")} = ${total} pts`;
+}
+
 export function costNote(unit: Unit, models: number, copies: number): string {
   const base = unit.sizes[0];
   if (!base || copies < 1) return "";

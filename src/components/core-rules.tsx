@@ -5,11 +5,16 @@ import { RULE_UPDATES, USING_STRATAGEMS } from "@/data/stratagems";
 
 export function CoreRules({ onClose }: { onClose: () => void }) {
   useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [onClose]);
 
   const abilities = WEAPON_ABILITIES.filter((ability) => ability.key !== "pistol");

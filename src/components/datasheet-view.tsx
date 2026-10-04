@@ -29,14 +29,14 @@ function WeaponLine({ weapon }: { weapon: WeaponProfile }) {
                 key={tag}
                 type="button"
                 onClick={() => setOpen(open === tag ? null : tag)}
-                className={`min-h-11 rounded-lg border px-2 text-xs ${
+                className={`rounded-lg border px-2 py-1 text-xs ${
                   open === tag ? "border-gold text-gold" : "border-line text-muted"
                 }`}
               >
                 {tag}
               </button>
             ) : (
-              <span key={tag} className="inline-flex min-h-11 items-center text-xs text-muted">
+              <span key={tag} className="inline-flex items-center text-xs text-muted">
                 {tag}
               </span>
             ),
@@ -51,9 +51,9 @@ function WeaponLine({ weapon }: { weapon: WeaponProfile }) {
       ) : null}
       <dl className="mt-2 grid grid-cols-6 gap-1 text-center">
         {cells.map(([label, value]) => (
-          <div key={label}>
+          <div key={label} className="min-w-0">
             <dt className="text-[10px] tracking-wide text-gold uppercase">{label}</dt>
-            <dd className="text-xs">{value}</dd>
+            <dd className="text-xs break-words">{value}</dd>
           </div>
         ))}
       </dl>
@@ -71,7 +71,7 @@ function KeywordLine({ text }: { text: string }) {
           <span key={`${part}-${index}`}>
             {index > 0 ? ", " : ""}
             {part === "Fly" ? (
-              <button type="button" onClick={() => setOpen((current) => !current)} className="min-h-11 text-gold underline">
+              <button type="button" onClick={() => setOpen((current) => !current)} className="text-gold underline">
                 Fly
               </button>
             ) : (
@@ -212,11 +212,16 @@ export function DatasheetView({
   const keywords = KEYWORDS[unitId];
 
   useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [onClose]);
 
   if (!sheet) return null;

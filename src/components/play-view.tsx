@@ -71,6 +71,7 @@ export function PlayView({
   onMainDisposition,
   entries,
   onBack,
+  onHome,
 }: {
   name: string;
   total: number;
@@ -81,6 +82,7 @@ export function PlayView({
   onMainDisposition: (disposition: string) => void;
   entries: PlayEntry[];
   onBack: () => void;
+  onHome: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("list");
   const [phase, setPhase] = useState<PhaseId | "all">("all");
@@ -107,8 +109,15 @@ export function PlayView({
   return (
     <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 px-4 py-5">
       <header className="sticky top-0 z-10 -mx-4 border-b border-line bg-bg px-4 pb-3">
-        <div className="flex items-start justify-between gap-3 pt-1">
-          <div className="min-w-0">
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <button type="button" onClick={onHome} className="min-h-11 shrink-0 rounded-lg border border-line px-3 py-2 text-sm">
+            Home
+          </button>
+          <button type="button" onClick={onBack} className="min-h-11 shrink-0 rounded-lg border border-line px-3 py-2 text-sm">
+            Back
+          </button>
+        </div>
+        <div className="min-w-0 pt-3">
             <p className="text-xs font-medium tracking-wide text-gold uppercase">Playing</p>
             <h1 className="truncate font-display text-2xl">{name}</h1>
             <p className="text-sm text-muted">
@@ -116,10 +125,6 @@ export function PlayView({
               {sheets.length ? ` · ${sheets.map((sheet) => sheet.name).join(", ")}` : ""}
             </p>
             {main ? <p className="text-sm text-muted">Main disposition: {main}</p> : null}
-          </div>
-          <button type="button" onClick={onBack} className="min-h-11 shrink-0 rounded-lg border border-line px-3 py-2 text-sm">
-            Back
-          </button>
         </div>
         <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
           {TABS.map((item) => (
@@ -173,13 +178,13 @@ export function PlayView({
                       className={`rounded-lg border border-line bg-surface px-3 py-3 ${attachedBodies.has(entry.id) ? "ml-4 border-l-gold" : ""}`}
                     >
                       <div className="flex items-baseline justify-between gap-3">
-                        <p className="text-sm font-medium">
+                        <p className="min-w-0 text-sm font-medium break-words">
                           {listFilter === "enhancements" && enhancement ? enhancement.name : entry.name}
                           {listFilter === "all" && entry.models > 1 ? ` x${entry.models}` : ""}
                           {listFilter === "all" && entry.warlord ? " (Warlord)" : ""}
                           {listFilter === "all" && entry.enhancement ? ` (${entry.enhancement})` : ""}
                         </p>
-                        <p className="text-sm text-gold">{listFilter === "enhancements" && enhancement ? `+${enhancement.points} pts` : `${entry.cost} pts`}</p>
+                        <p className="shrink-0 text-sm text-gold">{listFilter === "enhancements" && enhancement ? `+${enhancement.points} pts` : `${entry.cost} pts`}</p>
                       </div>
                       {listFilter === "enhancements" ? (
                         <>
@@ -349,7 +354,7 @@ export function PlayView({
               return (
                 <li key={stratagem.id} className="rounded-lg border border-line bg-surface px-3 py-3">
                   <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-sm font-medium">{stratagem.name}</p>
+                    <p className="min-w-0 text-sm font-medium break-words">{stratagem.name}</p>
                     <p className="shrink-0 text-sm text-gold">{stratagem.cp} CP</p>
                   </div>
                   <p className="text-xs text-gold">

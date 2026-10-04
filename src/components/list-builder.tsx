@@ -26,12 +26,12 @@ import {
   cleanGear,
   copyLimit,
   costNote,
-  costParts,
   gearLine,
   gearLineCounted,
   gearPoints,
   isCharacter,
   ordinal,
+  priceLine,
   sizeOf,
   squadCost,
   unitById,
@@ -447,6 +447,14 @@ function DetachmentChoices({
   );
 }
 
+function HomeButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="min-h-11 w-fit rounded-lg border border-line px-3 py-2 text-sm">
+      Home
+    </button>
+  );
+}
+
 export function ListBuilder() {
   const [lists, setLists] = useState<SavedList[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -725,7 +733,7 @@ export function ListBuilder() {
     return (
       <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6">
         <header>
-          <p className="text-xs font-medium tracking-[0.18em] text-gold uppercase">Adeptus Custodes</p>
+          <p className="text-xs font-medium tracking-wide text-gold uppercase">Adeptus Custodes</p>
           <h1 className="mt-1 font-display text-3xl leading-tight">The Ten Thousand's List Builder</h1>
           <p className="mt-3 max-w-xl text-sm text-muted">Create a list, or open one you already saved.</p>
         </header>
@@ -769,18 +777,12 @@ export function ListBuilder() {
     const saved = [...lists].sort((a, b) => b.updatedAt - a.updatedAt);
     return (
       <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6">
-        <header className="flex items-start justify-between gap-3">
+        <header className="flex flex-col gap-3">
+          <HomeButton onClick={() => setScreen("home")} />
           <div>
-            <p className="text-xs font-medium tracking-[0.18em] text-gold uppercase">Adeptus Custodes</p>
+            <p className="text-xs font-medium tracking-wide text-gold uppercase">Adeptus Custodes</p>
             <h1 className="mt-1 font-display text-3xl leading-tight">Saved lists</h1>
           </div>
-          <button
-            type="button"
-            onClick={() => setScreen("home")}
-            className="min-h-11 rounded-lg border border-line px-3 py-2 text-sm"
-          >
-            Back
-          </button>
         </header>
         {saved.length === 0 ? (
           <div className="flex flex-col gap-3">
@@ -838,11 +840,12 @@ export function ListBuilder() {
       <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6 pb-24">
         <header>
           <div className="flex flex-col gap-3">
+            <HomeButton onClick={leaveToHome} />
             <div>
-              <p className="text-xs font-medium tracking-[0.18em] text-gold uppercase">Adeptus Custodes</p>
+              <p className="text-xs font-medium tracking-wide text-gold uppercase">Adeptus Custodes</p>
               <h1 className="mt-1 font-display text-3xl leading-tight">Choose detachments</h1>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setCoreOpen(true)}
@@ -856,13 +859,6 @@ export function ListBuilder() {
                 className="min-h-11 rounded-lg border border-line px-3 py-2 text-sm"
               >
                 Settings
-              </button>
-              <button
-                type="button"
-                onClick={leaveToHome}
-                className="min-h-11 rounded-lg border border-line px-3 py-2 text-sm"
-              >
-                Lists
               </button>
             </div>
           </div>
@@ -893,11 +889,16 @@ export function ListBuilder() {
         <div className="fixed inset-x-0 bottom-0 border-t border-line bg-bg pb-[env(safe-area-inset-bottom)]">
           <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3">
             <p className="text-sm text-muted">
-              {spentDp(roster.detachments)} / {MAX_DP} DP
+              {dispositionChoices(roster.detachments).length > 1 && !roster.mainDisposition
+                ? "Choose a main disposition"
+                : `${spentDp(roster.detachments)} / ${MAX_DP} DP`}
             </p>
             <button
               type="button"
-              disabled={roster.detachments.length === 0}
+              disabled={
+                roster.detachments.length === 0 ||
+                (dispositionChoices(roster.detachments).length > 1 && !roster.mainDisposition)
+              }
               onClick={() => {
                 setRoster((current) => ({ ...current, building: true }));
                 setScreen("units");
@@ -940,6 +941,7 @@ export function ListBuilder() {
         onMainDisposition={setMainDisposition}
         entries={playEntries}
         onBack={() => setScreen("units")}
+        onHome={leaveToHome}
       />
     );
   }
@@ -1077,7 +1079,7 @@ export function ListBuilder() {
                 </button>
               ))}
             </div>
-          <div className="max-h-[70vh] min-w-0 overflow-x-hidden overflow-y-auto">
+          <div className="min-w-0">
             {visible.length === 0 ? (
               <p className="py-6 text-sm text-muted">Nothing matches.</p>
             ) : (
@@ -1087,6 +1089,8 @@ export function ListBuilder() {
                 const upcoming = nextCost(unit, models, roster.entries, roster.detachments);
                 const gearCost = gearPoints(unit.id, draftGear[unit.id]);
                 const shown = upcoming == null ? null : upcoming + gearCost;
+                const taken = roster.entries.filter((entry) => entry.unitId === unit.id).length;
+                const nextLine = upcoming == null ? null : priceLine(unit, models, taken, { wargear: gearCost });
                 return (
                   <article key={unit.id} className="min-w-0 border-b border-line py-4 last:border-b-0">
                     <div className="flex items-start justify-between gap-3">
@@ -1137,7 +1141,9 @@ export function ListBuilder() {
                         </button>
                       </div>
                     ) : null}
-                    <p className="mt-2 text-xs break-words text-muted">{costNote(unit, models, copyLimit(unit, roster.detachments))}</p>
+                    <p className="mt-2 text-xs break-words text-muted">
+                      {nextLine ?? costNote(unit, models, copyLimit(unit, roster.detachments))}
+                    </p>
                     {attachSummary(unit.id) || unit.note ? (
                       <p className="mt-1 text-xs text-muted">
                         {[attachSummary(unit.id), unit.note].filter(Boolean).join(" · ")}
@@ -1185,7 +1191,7 @@ export function ListBuilder() {
               </button>
             </div>
           </div>
-          <div className="max-h-[70vh] overflow-auto">
+          <div>
           {priced.length === 0 ? (
             <p className="py-6 text-sm text-muted">Add a unit.</p>
           ) : (
@@ -1204,7 +1210,10 @@ export function ListBuilder() {
                 const character = isCharacter(entry.unitId);
                 const warlord = entry.id === roster.warlordId;
                 const kit = gearLineCounted(entry.unitId, entry.gear, entry.models);
-                const parts = costParts(entry.unit, entry.models, entry.copy - 1);
+                const line = priceLine(entry.unit, entry.models, entry.copy - 1, {
+                  wargear: gearPoints(entry.unitId, entry.gear),
+                  enhancement: entry.enhancementId ? (enhancementById(entry.enhancementId)?.points ?? 0) : 0,
+                });
                 return (
                 <li key={entry.id} className={`border-b border-line py-3 last:border-b-0 ${leader ? "border-l-2 border-l-gold pl-4" : ""}`}>
                   <div className="flex items-start justify-between gap-3">
@@ -1213,10 +1222,8 @@ export function ListBuilder() {
                         {entry.unit.name}
                         {entry.models > 1 ? ` x${entry.models}` : ""}
                       </p>
-                      <p className="text-xs text-muted">
-                        {ordinal(entry.copy)} unit
-                        {parts?.additionalUnit ? ` +${parts.additionalUnit} pts` : ""}
-                        {parts?.additionalModels ? ` · ${entry.models} models +${parts.additionalModels} pts` : ""}
+                      <p className="text-xs break-words text-muted">
+                        {line}
                         {entry.unit.maxCopies === 1 ? " · one only" : ""}
                         {warlord ? " · Warlord" : ""}
                         {leader ? ` · led by ${leader.unit.name}` : ""}
@@ -1321,6 +1328,13 @@ export function ListBuilder() {
           unitId={sheet.unitId}
           unitName={unitById(sheet.unitId)?.name ?? "Datasheet"}
           gear={sheet.entryId ? roster.entries.find((entry) => entry.id === sheet.entryId)?.gear : undefined}
+          enhancement={(() => {
+            const picked = sheet.entryId
+              ? roster.entries.find((entry) => entry.id === sheet.entryId)?.enhancementId
+              : undefined;
+            const rule = picked ? enhancementById(picked) : undefined;
+            return rule ? { name: rule.name, rule: rule.rule } : undefined;
+          })()}
           listOnly={Boolean(sheet.entryId)}
           onClose={() => setSheet(null)}
         />
