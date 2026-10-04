@@ -26,6 +26,7 @@ import {
   cleanGear,
   copyLimit,
   costNote,
+  costParts,
   gearLine,
   gearLineCounted,
   gearPoints,
@@ -1203,6 +1204,7 @@ export function ListBuilder() {
                 const character = isCharacter(entry.unitId);
                 const warlord = entry.id === roster.warlordId;
                 const kit = gearLineCounted(entry.unitId, entry.gear, entry.models);
+                const parts = costParts(entry.unit, entry.models, entry.copy - 1);
                 return (
                 <li key={entry.id} className={`border-b border-line py-3 last:border-b-0 ${leader ? "border-l-2 border-l-gold pl-4" : ""}`}>
                   <div className="flex items-start justify-between gap-3">
@@ -1212,7 +1214,9 @@ export function ListBuilder() {
                         {entry.models > 1 ? ` x${entry.models}` : ""}
                       </p>
                       <p className="text-xs text-muted">
-                        {ordinal(entry.copy)} copy
+                        {ordinal(entry.copy)} unit
+                        {parts?.additionalUnit ? ` +${parts.additionalUnit} pts` : ""}
+                        {parts?.additionalModels ? ` · ${entry.models} models +${parts.additionalModels} pts` : ""}
                         {entry.unit.maxCopies === 1 ? " · one only" : ""}
                         {warlord ? " · Warlord" : ""}
                         {leader ? ` · led by ${leader.unit.name}` : ""}

@@ -241,17 +241,34 @@ export function costAt(size: UnitSize, copyIndex: number): number {
   return size.fourthPlus ?? size.costs[size.costs.length - 1]!;
 }
 
-/** Copy number is how many of this datasheet are already in the list, at any model count. The price is that copy's cost for the chosen model count. */
+/** One version ladder for the datasheet, then the extra cost of the chosen model count. */
 export function squadCost(unit: Unit, models: number, copyIndex: number): number {
+  const parts = costParts(unit, models, copyIndex);
+  if (!parts) return 0;
+  return parts.unit + parts.additionalUnit + parts.additionalModels;
+}
+
+export function costParts(
+  unit: Unit,
+  models: number,
+  copyIndex: number,
+): { unit: number; additionalUnit: number; additionalModels: number } | null {
+  const base = unit.sizes[0];
   const size = sizeOf(unit, models);
-  if (!size) return 0;
-  return costAt(size, copyIndex);
+  if (!base || !size) return null;
+  const unitCost = base.costs[0] ?? 0;
+  return {
+    unit: unitCost,
+    additionalUnit: costAt(base, copyIndex) - unitCost,
+    additionalModels: (size.costs[0] ?? unitCost) - unitCost,
+  };
 }
 
 export function costNote(unit: Unit, models: number, copies: number): string {
-  const size = sizeOf(unit, models);
-  if (!size || copies < 1) return "";
-  const prices = Array.from({ length: copies }, (_, index) => costAt(size, index));
+  const base = unit.sizes[0];
+  if (!base || copies < 1) return "";
+  const unitCost = base.costs[0] ?? 0;
+  const prices = Array.from({ length: copies }, (_, index) => costAt(base, index));
   const parts: string[] = [];
   let index = 0;
   while (index < prices.length) {
@@ -259,10 +276,13 @@ export function costNote(unit: Unit, models: number, copies: number): string {
     while (end + 1 < prices.length && prices[end + 1] === prices[index]) end += 1;
     const from = ordinal(index + 1);
     const label = index === end ? `${from} unit` : `${from}–${ordinal(end + 1)} unit`;
-    parts.push(`${label} ${prices[index]} pts`);
+    const price = prices[index] ?? unitCost;
+    parts.push(price === unitCost ? `${label} ${unitCost} pts` : `${label} +${price - unitCost} pts`);
     index = end + 1;
   }
-  return `${models} ${models === 1 ? "model" : "models"} · ${parts.join(" · ")}`;
+  const additionalModels = (sizeOf(unit, models)?.costs[0] ?? unitCost) - unitCost;
+  if (additionalModels) parts.push(`${models} models +${additionalModels} pts`);
+  return parts.join(" · ");
 }
 
 export function ordinal(n: number): string {
