@@ -241,44 +241,28 @@ export function costAt(size: UnitSize, copyIndex: number): number {
   return size.fourthPlus ?? size.costs[size.costs.length - 1]!;
 }
 
-/** Smallest squad, first copy. Later copies add that size's extra-unit tax. Extra models add the larger size's premium. */
+/** Copy number is how many of this datasheet are already in the list, at any model count. The price is that copy's cost for the chosen model count. */
 export function squadCost(unit: Unit, models: number, copyIndex: number): number {
-  const base = unit.sizes[0];
   const size = sizeOf(unit, models);
-  if (!base || !size) return 0;
-  const unitCost = base.costs[0] ?? 0;
-  const additionalUnit = costAt(base, copyIndex) - unitCost;
-  const additionalModels = (size.costs[0] ?? unitCost) - unitCost;
-  return unitCost + additionalUnit + additionalModels;
+  if (!size) return 0;
+  return costAt(size, copyIndex);
 }
 
 export function costNote(unit: Unit, models: number, copies: number): string {
-  const base = unit.sizes[0];
-  if (!base) return "";
-  const unitCost = base.costs[0] ?? 0;
-  const parts = [`Unit ${unitCost} pts`];
-  const taxes = Array.from({ length: Math.max(0, copies - 1) }, (_, index) => costAt(base, index + 1) - unitCost);
-  if (taxes.some((tax) => tax !== 0)) {
-    if (taxes.every((tax) => tax === taxes[0])) {
-      parts.push(`Additional unit +${taxes[0]} pts`);
-    } else {
-      let index = 0;
-      while (index < taxes.length) {
-        let end = index;
-        while (end + 1 < taxes.length && taxes[end + 1] === taxes[index]) end += 1;
-        const tax = taxes[index] ?? 0;
-        if (tax !== 0) {
-          const from = ordinal(index + 2);
-          const label = index === end ? `${from} unit` : `${from}–${ordinal(end + 2)} unit`;
-          parts.push(`${label} +${tax} pts`);
-        }
-        index = end + 1;
-      }
-    }
+  const size = sizeOf(unit, models);
+  if (!size || copies < 1) return "";
+  const prices = Array.from({ length: copies }, (_, index) => costAt(size, index));
+  const parts: string[] = [];
+  let index = 0;
+  while (index < prices.length) {
+    let end = index;
+    while (end + 1 < prices.length && prices[end + 1] === prices[index]) end += 1;
+    const from = ordinal(index + 1);
+    const label = index === end ? `${from} unit` : `${from}–${ordinal(end + 1)} unit`;
+    parts.push(`${label} ${prices[index]} pts`);
+    index = end + 1;
   }
-  const additionalModels = (sizeOf(unit, models)?.costs[0] ?? unitCost) - unitCost;
-  if (additionalModels) parts.push(`Additional models +${additionalModels} pts`);
-  return parts.join(" · ");
+  return `${models} ${models === 1 ? "model" : "models"} · ${parts.join(" · ")}`;
 }
 
 export function ordinal(n: number): string {

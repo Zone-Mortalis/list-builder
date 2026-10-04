@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Plus, X } from "lucide-react";
+import { Check, ChevronDown, Plus, X } from "lucide-react";
 import { datasheetById, KEYWORDS, type WeaponProfile } from "@/data/datasheets";
 import { explainTag, FLY_RULE } from "@/data/rules";
 import { gearGroups, gearLine, weaponTaken, type GearGroup } from "@/data/units";
@@ -168,20 +168,28 @@ function WeaponMenu({
   onGear: (groupId: string, choiceId: string) => void;
 }) {
   const selected = gear?.[group.id] ?? group.choices[0]?.id ?? "";
+  const current = group.choices.find((item) => item.id === selected) ?? group.choices[0];
+  const label = current ? `${current.name}${current.points ? ` +${current.points} pts` : ""}` : "Weapon";
   return (
-    <select
-      aria-label="Weapon"
-      value={selected}
-      onChange={(event) => onGear(group.id, event.target.value)}
-      className="weapon-select h-8 max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg"
-    >
-      {group.choices.map((item) => (
-        <option key={item.id} value={item.id}>
-          {item.name}
-          {item.points ? ` +${item.points} pts` : ""}
-        </option>
-      ))}
-    </select>
+    <div className="relative inline-flex max-w-full min-w-0">
+      <span className="inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-lg border border-gold/50 bg-bg px-2 text-xs text-fg shadow-[inset_0_0_0_1px_rgba(0,0,0,0.15)]">
+        <span className="min-w-0 truncate">{label}</span>
+        <ChevronDown className="size-3.5 shrink-0 text-gold" aria-hidden="true" />
+      </span>
+      <select
+        aria-label="Weapon"
+        value={selected}
+        onChange={(event) => onGear(group.id, event.target.value)}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      >
+        {group.choices.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.name}
+            {item.points ? ` +${item.points} pts` : ""}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }
 
