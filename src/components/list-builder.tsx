@@ -385,7 +385,7 @@ function DetachmentChoices({
         <section key={group.title}>
           <h2 className="font-display text-lg">{group.title}</h2>
           <p className="mt-1 text-sm text-muted">{group.hint}</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <div className="mt-3 grid gap-2">
             {group.items.map((detachment) => {
               const on = selected.includes(detachment.id);
               const blocked =
@@ -722,10 +722,10 @@ export function ListBuilder() {
 
   if (screen === "home" || (!activeId && screen !== "saved")) {
     return (
-      <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6">
+      <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6">
         <header>
           <p className="text-xs font-medium tracking-[0.18em] text-gold uppercase">Adeptus Custodes</p>
-          <h1 className="mt-1 font-display text-3xl leading-tight sm:text-4xl">The Ten Thousand's List Builder</h1>
+          <h1 className="mt-1 font-display text-3xl leading-tight">The Ten Thousand's List Builder</h1>
           <p className="mt-3 max-w-xl text-sm text-muted">Create a list, or open one you already saved.</p>
         </header>
         <div className="flex flex-col gap-3">
@@ -767,11 +767,11 @@ export function ListBuilder() {
   if (screen === "saved") {
     const saved = [...lists].sort((a, b) => b.updatedAt - a.updatedAt);
     return (
-      <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6">
+      <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6">
         <header className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium tracking-[0.18em] text-gold uppercase">Adeptus Custodes</p>
-            <h1 className="mt-1 font-display text-3xl leading-tight sm:text-4xl">Saved lists</h1>
+            <h1 className="mt-1 font-display text-3xl leading-tight">Saved lists</h1>
           </div>
           <button
             type="button"
@@ -834,12 +834,12 @@ export function ListBuilder() {
   if (screen === "detachments") {
     return (
       <>
-      <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6 pb-24 sm:px-6">
+      <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6 pb-24">
         <header>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-3">
             <div>
               <p className="text-xs font-medium tracking-[0.18em] text-gold uppercase">Adeptus Custodes</p>
-              <h1 className="mt-1 font-display text-3xl leading-tight sm:text-4xl">Choose detachments</h1>
+              <h1 className="mt-1 font-display text-3xl leading-tight">Choose detachments</h1>
             </div>
             <div className="flex gap-2">
               <button
@@ -890,7 +890,7 @@ export function ListBuilder() {
           onRules={(id) => setRulesIds([id])}
         />
         <div className="fixed inset-x-0 bottom-0 border-t border-line bg-bg pb-[env(safe-area-inset-bottom)]">
-          <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3">
             <p className="text-sm text-muted">
               {spentDp(roster.detachments)} / {MAX_DP} DP
             </p>
@@ -944,7 +944,7 @@ export function ListBuilder() {
   }
 
   return (
-    <main className="page-enter mx-auto flex min-h-screen w-full max-w-6xl min-w-0 flex-col gap-4 overflow-x-hidden px-4 py-5 sm:px-6">
+    <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl min-w-0 flex-col gap-4 overflow-x-hidden px-4 py-5">
       <header className="flex flex-col gap-3 border-b border-line pb-4">
         <div className="flex items-center justify-between gap-3">
           <button
@@ -969,7 +969,7 @@ export function ListBuilder() {
               aria-label="Army name"
               value={roster.name}
               onChange={(event) => setRoster((current) => ({ ...current, name: event.target.value }))}
-              className="mt-1 w-full bg-transparent font-display text-2xl leading-tight text-fg outline-none sm:text-3xl"
+              className="mt-1 w-full bg-transparent font-display text-2xl leading-tight text-fg outline-none"
             />
           </div>
           <label className="flex shrink-0 flex-col gap-1 text-xs tracking-wide text-muted uppercase">
@@ -1002,7 +1002,7 @@ export function ListBuilder() {
             <div className={`h-full ${over ? "bg-danger" : "bg-gold"}`} style={{ width: `${fill}%` }} />
           </div>
         </div>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-3">
           <div className="min-w-0">
             <p className="text-sm break-words">
               {roster.detachments.map((id) => detachmentById(id)?.name).filter(Boolean).join(", ") || "No detachments"}

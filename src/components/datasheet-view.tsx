@@ -229,12 +229,12 @@ export function DatasheetView({
   const selectedKit = gearLine(unitId, gear);
 
   return (
-    <div className="sheet-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center" onClick={onClose}>
+    <div className="sheet-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={`${unitName} datasheet`}
-        className="sheet-panel max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-line bg-surface px-4 py-4 sm:rounded-xl"
+        className="sheet-panel max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-line bg-surface px-4 py-4"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">

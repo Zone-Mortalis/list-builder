@@ -105,12 +105,12 @@ export function PlayView({
         : undefined;
 
   return (
-    <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 px-4 py-5 sm:px-6">
-      <header className="sticky top-0 z-10 -mx-4 border-b border-line bg-bg px-4 pb-3 sm:-mx-6 sm:px-6">
+    <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 px-4 py-5">
+      <header className="sticky top-0 z-10 -mx-4 border-b border-line bg-bg px-4 pb-3">
         <div className="flex items-start justify-between gap-3 pt-1">
           <div className="min-w-0">
             <p className="text-xs font-medium tracking-wide text-gold uppercase">Playing</p>
-            <h1 className="truncate font-display text-2xl sm:text-3xl">{name}</h1>
+            <h1 className="truncate font-display text-2xl">{name}</h1>
             <p className="text-sm text-muted">
               {total} pts / {limit} pts
               {sheets.length ? ` · ${sheets.map((sheet) => sheet.name).join(", ")}` : ""}
@@ -121,7 +121,7 @@ export function PlayView({
             Back
           </button>
         </div>
-        <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+        <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
           {TABS.map((item) => (
             <button
               key={item.id}
@@ -323,7 +323,7 @@ export function PlayView({
       {tab === "stratagems" ? (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-muted">{USING_STRATAGEMS}</p>
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
             <button
               type="button"
               onClick={() => setPhase("all")}
