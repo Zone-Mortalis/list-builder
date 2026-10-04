@@ -363,6 +363,7 @@ const INFANTRY = ["sentinel-guard", "custodian-guard", "wardens"] as const;
 const TERMINATORS = ["allarus", "aquilon-gauntlets", "aquilon-talons"] as const;
 const JETBIKES = ["vertus", "gyrfalcon"] as const;
 const SISTERS = ["prosecutors", "vigilators", "witchseekers"] as const;
+const AGENT_BATTLELINE_LEADERS = new Set(["coteaz", "draxus", "greyfax", "inquisitor"]);
 
 /** Body datasheets a character may join. Venatari are jump packs, so neither Trajann nor the jetbike captain can join them. */
 export const LEADER_TARGETS: Record<string, readonly string[]> = {
@@ -378,8 +379,11 @@ export function isCharacter(unitId: string): boolean {
   return unitId in LEADER_TARGETS;
 }
 
-export function canLead(leaderUnitId: string, bodyUnitId: string): boolean {
-  return LEADER_TARGETS[leaderUnitId]?.includes(bodyUnitId) ?? false;
+export function canLead(leaderUnitId: string, bodyUnitId: string, detachments: readonly string[] = []): boolean {
+  if (LEADER_TARGETS[leaderUnitId]?.includes(bodyUnitId)) return true;
+  if (!AGENT_BATTLELINE_LEADERS.has(leaderUnitId)) return false;
+  const body = unitById(bodyUnitId);
+  return body != null && unitCategory(body, detachments) === "Battleline";
 }
 
 export function attachSummary(unitId: string): string | null {
@@ -395,6 +399,11 @@ export function attachSummary(unitId: string): string | null {
       return "Attaches to jetbikes. Not Venatari.";
     case "knight-centura":
       return "Attaches to Sisters squads. Not the Rhino.";
+    case "coteaz":
+    case "draxus":
+    case "greyfax":
+    case "inquisitor":
+      return "Attaches to Battleline.";
     default:
       return null;
   }

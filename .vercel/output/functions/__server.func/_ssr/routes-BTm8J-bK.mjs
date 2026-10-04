@@ -1,7 +1,7 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { K as require_react, b as require_jsx_runtime } from "../_libs/@tanstack/react-router+[...].mjs";
 import { a as Minus, c as Check, i as Plus, o as Crown, r as Trash2, s as ChevronDown, t as X } from "../_libs/lucide-react.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-CJLsMgL8.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-BTm8J-bK.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var gun = (name, tags, range, a, bs, s, ap, d) => ({
@@ -2155,6 +2155,12 @@ var SISTERS = [
 	"vigilators",
 	"witchseekers"
 ];
+var AGENT_BATTLELINE_LEADERS = /* @__PURE__ */ new Set([
+	"coteaz",
+	"draxus",
+	"greyfax",
+	"inquisitor"
+]);
 /** Body datasheets a character may join. Venatari are jump packs, so neither Trajann nor the jetbike captain can join them. */
 var LEADER_TARGETS = {
 	trajann: [...INFANTRY, ...TERMINATORS],
@@ -2167,8 +2173,11 @@ var LEADER_TARGETS = {
 function isCharacter(unitId) {
 	return unitId in LEADER_TARGETS;
 }
-function canLead(leaderUnitId, bodyUnitId) {
-	return LEADER_TARGETS[leaderUnitId]?.includes(bodyUnitId) ?? false;
+function canLead(leaderUnitId, bodyUnitId, detachments = []) {
+	if (LEADER_TARGETS[leaderUnitId]?.includes(bodyUnitId)) return true;
+	if (!AGENT_BATTLELINE_LEADERS.has(leaderUnitId)) return false;
+	const body = unitById(bodyUnitId);
+	return body != null && unitCategory(body, detachments) === "Battleline";
 }
 function attachSummary(unitId) {
 	switch (unitId) {
@@ -2178,6 +2187,10 @@ function attachSummary(unitId) {
 		case "shield-captain-allarus": return "Attaches to terminators.";
 		case "shield-captain-jetbike": return "Attaches to jetbikes. Not Venatari.";
 		case "knight-centura": return "Attaches to Sisters squads. Not the Rhino.";
+		case "coteaz":
+		case "draxus":
+		case "greyfax":
+		case "inquisitor": return "Attaches to Battleline.";
 		default: return null;
 	}
 }
@@ -4499,6 +4512,7 @@ function rosterFrom(parsed) {
 		if (gear) next.gear = gear;
 		return [next];
 	}) : [];
+	const detachments = legalDetachments(Array.isArray(parsed.detachments) ? parsed.detachments.filter((id) => typeof id === "string") : []);
 	const ids = new Set(entries.map((entry) => entry.id));
 	for (const entry of entries) {
 		if (!entry.attachedTo || !ids.has(entry.attachedTo)) {
@@ -4506,7 +4520,7 @@ function rosterFrom(parsed) {
 			continue;
 		}
 		const body = entries.find((candidate) => candidate.id === entry.attachedTo);
-		if (!body || !canLead(entry.unitId, body.unitId)) delete entry.attachedTo;
+		if (!body || !canLead(entry.unitId, body.unitId, detachments)) delete entry.attachedTo;
 	}
 	const taken = /* @__PURE__ */ new Set();
 	for (const entry of entries) {
@@ -4514,7 +4528,6 @@ function rosterFrom(parsed) {
 		if (taken.has(entry.attachedTo)) delete entry.attachedTo;
 		else taken.add(entry.attachedTo);
 	}
-	const detachments = legalDetachments(Array.isArray(parsed.detachments) ? parsed.detachments.filter((id) => typeof id === "string") : []);
 	const seenEnhancements = /* @__PURE__ */ new Set();
 	for (const entry of entries) {
 		const enhancement = entry.enhancementId ? enhancementById(entry.enhancementId) : void 0;
@@ -5514,7 +5527,7 @@ function ListBuilder() {
 						className: "border-b border-line py-3 text-sm text-danger",
 						children: "Choose a warlord."
 					}) : null, priced.map((entry) => {
-						const targets = priced.filter((candidate) => candidate.id !== entry.id && canLead(entry.unitId, candidate.unitId) && (!priced.some((leader) => leader.attachedTo === candidate.id) || entry.attachedTo === candidate.id));
+						const targets = priced.filter((candidate) => candidate.id !== entry.id && canLead(entry.unitId, candidate.unitId, roster.detachments) && (!priced.some((leader) => leader.attachedTo === candidate.id) || entry.attachedTo === candidate.id));
 						const leader = priced.find((candidate) => candidate.attachedTo === entry.id);
 						const character = isCharacter(entry.unitId);
 						const warlord = entry.id === roster.warlordId;

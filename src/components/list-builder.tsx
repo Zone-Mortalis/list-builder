@@ -257,6 +257,9 @@ function rosterFrom(parsed: Partial<Roster> | null): Roster {
         return [next];
       })
     : [];
+  const detachments = legalDetachments(
+    Array.isArray(parsed.detachments) ? parsed.detachments.filter((id): id is string => typeof id === "string") : [],
+  );
   const ids = new Set(entries.map((entry) => entry.id));
   for (const entry of entries) {
     if (!entry.attachedTo || !ids.has(entry.attachedTo)) {
@@ -264,7 +267,7 @@ function rosterFrom(parsed: Partial<Roster> | null): Roster {
       continue;
     }
     const body = entries.find((candidate) => candidate.id === entry.attachedTo);
-    if (!body || !canLead(entry.unitId, body.unitId)) delete entry.attachedTo;
+    if (!body || !canLead(entry.unitId, body.unitId, detachments)) delete entry.attachedTo;
   }
   const taken = new Set<string>();
   for (const entry of entries) {
@@ -272,9 +275,6 @@ function rosterFrom(parsed: Partial<Roster> | null): Roster {
     if (taken.has(entry.attachedTo)) delete entry.attachedTo;
     else taken.add(entry.attachedTo);
   }
-  const detachments = legalDetachments(
-    Array.isArray(parsed.detachments) ? parsed.detachments.filter((id): id is string => typeof id === "string") : [],
-  );
   const seenEnhancements = new Set<string>();
   for (const entry of entries) {
     const enhancement = entry.enhancementId ? enhancementById(entry.enhancementId) : undefined;
@@ -1238,7 +1238,7 @@ export function ListBuilder() {
                 const targets = priced.filter(
                   (candidate) =>
                     candidate.id !== entry.id &&
-                    canLead(entry.unitId, candidate.unitId) &&
+                    canLead(entry.unitId, candidate.unitId, roster.detachments) &&
                     (!priced.some((leader) => leader.attachedTo === candidate.id) || entry.attachedTo === candidate.id),
                 );
                 const leader = priced.find((candidate) => candidate.attachedTo === entry.id);
