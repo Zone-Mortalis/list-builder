@@ -18,7 +18,20 @@ export type Unit = {
   note?: string;
 };
 
-export const CATEGORIES = ["Characters", "Battleline", "Infantry", "Elites", "Fast Attack", "Heavy Support", "Transports"] as const;
+export const CATEGORIES = [
+  "Characters",
+  "Battleline",
+  "Infantry",
+  "Elites",
+  "Fast Attack",
+  "Heavy Support",
+  "Transports",
+  "Imperial Agents",
+  "Imperial Retinue",
+  "Knights",
+  "Armigers",
+  "Titans",
+] as const;
 
 const flat = (points: number): number[] => [points, points, points];
 
@@ -215,6 +228,20 @@ export const UNITS: Unit[] = [
     category: "Transports",
     sizes: [{ models: 1, costs: [70, 70, 70], fourthPlus: 80 }],
   },
+  { id: "callidus", name: "Callidus Assassin", category: "Imperial Agents", sizes: [{ models: 1, costs: [100] }], maxCopies: 1 },
+  { id: "culexus", name: "Culexus Assassin", category: "Imperial Agents", sizes: [{ models: 1, costs: [85] }], maxCopies: 1 },
+  { id: "eversor", name: "Eversor Assassin", category: "Imperial Agents", sizes: [{ models: 1, costs: [110] }], maxCopies: 1 },
+  { id: "coteaz", name: "Inquisitor Coteaz", category: "Imperial Agents", sizes: [{ models: 1, costs: [95] }], maxCopies: 1 },
+  { id: "draxus", name: "Inquisitor Draxus", category: "Imperial Agents", sizes: [{ models: 1, costs: [110] }], maxCopies: 1 },
+  { id: "greyfax", name: "Inquisitor Greyfax", category: "Imperial Agents", sizes: [{ models: 1, costs: [65] }], maxCopies: 1 },
+  { id: "kroyle", name: "Inquisitor Kroyle", category: "Imperial Agents", sizes: [{ models: 1, costs: [100] }], maxCopies: 1 },
+  { id: "vindicare", name: "Vindicare Assassin", category: "Imperial Agents", sizes: [{ models: 1, costs: [125] }], maxCopies: 1 },
+  { id: "artemis", name: "Watch Captain Artemis", category: "Imperial Agents", sizes: [{ models: 1, costs: [75] }], maxCopies: 1 },
+  { id: "inquisitor", name: "Inquisitor", category: "Imperial Agents", sizes: [{ models: 1, costs: flat(65) }] },
+  { id: "ministorum-priest", name: "Ministorum Priest", category: "Imperial Agents", sizes: [{ models: 1, costs: flat(40) }] },
+  { id: "navigator", name: "Navigator", category: "Imperial Agents", sizes: [{ models: 1, costs: flat(75) }] },
+  { id: "rogue-trader", name: "Rogue Trader Entourage", category: "Imperial Agents", sizes: [{ models: 4, costs: flat(105) }] },
+  { id: "watch-master", name: "Watch Master", category: "Imperial Agents", sizes: [{ models: 1, costs: flat(105) }] },
 ];
 
 export function unitCategory(unit: Unit, detachments: readonly string[]): string {
@@ -516,6 +543,19 @@ const ARMED: Record<string, string> = {
   vigilators: "Executioner Greatblades",
   witchseekers: "Flamers",
   rhino: "Storm Bolter",
+  callidus: "Neural Shredder, Phase Sword and Poison Blades",
+  culexus: "Animus Speculum, Life-draining Touch",
+  eversor: "Executioner Pistol, Power Sword and Neuro Gauntlet",
+  coteaz: "Bolt Pistol, Psychic Blast, Nemesis Daemon Hammer",
+  draxus: "Dirgesinger, Psychic Tempest, Power Fist",
+  greyfax: "Castigation, Condemnor Stake, Master-crafted Power Sword",
+  kroyle: "Jindarii Tox-cycler, Stubcarbine, Butcher Blade",
+  vindicare: "Exitus Rifle, Exitus Pistol, Vindicare Combat Knife",
+  artemis: "Hellfire Extremis, Master-crafted Power Weapon",
+  inquisitor: "Bolt Pistol, Inquisitorial Melee Weapon",
+  "ministorum-priest": "Zealot’s Vindictor",
+  navigator: "Laspistol, Force-orb Cane",
+  "watch-master": "Vigil Spear",
 };
 
 export function gearGroups(unitId: string): GearGroup[] {
