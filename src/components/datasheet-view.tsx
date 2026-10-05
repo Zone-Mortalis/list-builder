@@ -5,6 +5,7 @@ import { datasheetById, KEYWORDS, type WeaponProfile } from "@/data/datasheets";
 import { resolvedLoadout } from "@/data/loadouts";
 import { explainTag, FLY_RULE } from "@/data/rules";
 import { characteristicMarks, keywordMarked, playSheet, weaponMarkKey, type WeaponMark } from "@/data/sheet-mods";
+import type { BodyguardSheet } from "@/data/characteristic-mods";
 import { gearGroups, gearLine, type GearGroup } from "@/data/units";
 
 function WeaponLine({ weapon, mark }: { weapon: WeaponProfile; mark?: WeaponMark }) {
@@ -313,6 +314,7 @@ export function DatasheetView({
   gear,
   enhancementId,
   enhancementWeapon,
+  bodyguard,
   listOnly = false,
   onClose,
 }: {
@@ -322,6 +324,8 @@ export function DatasheetView({
   gear?: Record<string, string>;
   enhancementId?: string;
   enhancementWeapon?: string;
+  /** Squad this leader is attached to, so its unit-wide characteristic mods show on this sheet. */
+  bodyguard?: BodyguardSheet;
   listOnly?: boolean;
   onClose: () => void;
 }) {
@@ -330,8 +334,8 @@ export function DatasheetView({
 
   if (!sheet) return null;
 
-  const presented = listOnly ? playSheet({ unitId, models, gear, enhancementId, enhancementWeapon }) : null;
-  const marks = listOnly ? characteristicMarks({ unitId, models, gear, enhancementId, enhancementWeapon }) : null;
+  const presented = listOnly ? playSheet({ unitId, models, gear, enhancementId, enhancementWeapon, bodyguard }) : null;
+  const marks = listOnly ? characteristicMarks({ unitId, models, gear, enhancementId, enhancementWeapon, bodyguard }) : null;
   const statsSource = presented?.stats ?? sheet.stats;
   const extraProfiles = presented?.profiles ?? sheet.profiles ?? [];
   const blocks = [

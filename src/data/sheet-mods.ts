@@ -1,12 +1,14 @@
 import {
   astartesShieldTaken,
-  bannerTaken,
+  characteristicDelta,
   equippedKeywordGrants,
+  inheritedUnitAffects,
   invulnFromAffects,
   selectedAffects,
   simulacrumTaken,
-  vexillaTaken,
+  wargearAffects,
   type Affects,
+  type BodyguardSheet,
   type UnitStat,
   type WeaponAffect,
   type WeaponStat,
@@ -169,12 +171,15 @@ export function playSheet({
   gear,
   enhancementId,
   enhancementWeapon,
+  bodyguard,
 }: {
   unitId: string;
   models?: number;
   gear?: Record<string, string>;
   enhancementId?: string;
   enhancementWeapon?: string;
+  /** Squad this leader is attached to. Unit-wide characteristic mods on that squad apply here. */
+  bodyguard?: BodyguardSheet;
 }): {
   stats: ModelStats;
   profiles: { name: string; stats: ModelStats }[];
@@ -187,8 +192,10 @@ export function playSheet({
   const enhancement = enhancementId ? enhancementById(enhancementId) : undefined;
   const affects = selectedAffects({ unitId, gear, enhancementId });
   const rangedKeywords = equippedKeywordGrants(affects, "ranged");
-  const oc = (vexillaTaken(gear) ? 1 : 0) + (bannerTaken(gear) ? 1 : 0);
-  const leadership = hasSimulacrum(unitId, gear) ? 1 : 0;
+  const own = characteristicDelta(wargearAffects(unitId, gear), "any");
+  const inherited = characteristicDelta(inheritedUnitAffects(bodyguard), "all");
+  const oc = own.oc + inherited.oc;
+  const leadership = own.leadership + inherited.leadership;
   const wounds = enhancement?.wounds ?? 0;
   const inv = invulnFromAffects(affects);
   const mod = enhancement?.weaponMod;
@@ -267,12 +274,15 @@ export function characteristicMarks({
   gear,
   enhancementId,
   enhancementWeapon,
+  bodyguard,
 }: {
   unitId: string;
   models?: number;
   gear?: Record<string, string>;
   enhancementId?: string;
   enhancementWeapon?: string;
+  /** Squad this leader is attached to. Unit-wide characteristic mods on that squad are marked here. */
+  bodyguard?: BodyguardSheet;
 }): CharacteristicMarks {
   const sheet = datasheetById(unitId);
   const unit = new Map<string, Set<UnitStat>>();
@@ -310,6 +320,7 @@ export function characteristicMarks({
   };
 
   for (const item of selectedAffects({ unitId, gear, enhancementId })) apply(item);
+  for (const item of inheritedUnitAffects(bodyguard)) apply(item);
 
   const frozen = new Map<string, WeaponMark>();
   for (const [key, mark] of weapons) {
