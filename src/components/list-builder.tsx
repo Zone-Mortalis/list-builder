@@ -1581,13 +1581,10 @@ export function ListBuilder() {
                 const targets = priced.filter((candidate) => {
                   if (candidate.id === entry.id) return false;
                   if (supportCharacter) {
-                    const hasLeader = priced.some(
-                      (leader) => !isSupport(leader.unitId) && leader.attachedTo === candidate.id,
-                    );
                     const supportTaken = priced.some(
                       (other) => other.id !== entry.id && isSupport(other.unitId) && other.attachedTo === candidate.id,
                     );
-                    return canSupport(entry.unitId, candidate.unitId) && hasLeader && !supportTaken;
+                    return canSupport(entry.unitId, candidate.unitId) && !supportTaken;
                   }
                   const leaderTaken = priced.some(
                     (leader) => leader.id !== entry.id && !isSupport(leader.unitId) && leader.attachedTo === candidate.id,
@@ -1661,7 +1658,7 @@ export function ListBuilder() {
                     </button>
                   </div>
                   {supportCharacter && targets.length === 0 && !entry.attachedTo ? (
-                    <p className="mt-2 text-xs text-muted">Supports a unit that already has a Leader.</p>
+                    <p className="mt-2 text-xs text-muted">{attachSummary(entry.unitId)}</p>
                   ) : null}
                   {attachSummary(entry.unitId) && (targets.length > 0 || entry.attachedTo) ? (
                     <label className="mt-2 flex w-fit max-w-full flex-col items-start text-xs text-muted">

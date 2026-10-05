@@ -457,12 +457,14 @@ const NAMED_BODIES: Record<string, readonly string[]> = {
 };
 
 /**
- * Characters with the Support ability. They join a unit that already has a
- * Leader, and only the bodyguard units named on the datasheet.
- * The Ministorum Priest is the only Support datasheet in this army.
+ * Characters with the Support ability, and the bodyguard units they may join.
+ * A Leader is never required. If one is attached, Support joins alongside it.
+ * The Ministorum Priest list is the Support ability on its datasheet.
+ * The Knight-Centura joins only Prosecutor, Vigilator, and Witchseeker Squads.
  */
 export const SUPPORT_TARGETS: Record<string, readonly string[]> = {
   "ministorum-priest": ["exaction", "breachers", "inquisitorial-agents", "sanctifiers", "subductors", "vigilants", "sisters-squad"],
+  "knight-centura": SISTERS,
 };
 
 /** Body datasheets a character may join. Venatari are jump packs, so neither Trajann nor the jetbike captain can join them. */
@@ -472,7 +474,6 @@ export const LEADER_TARGETS: Record<string, readonly string[]> = {
   "blade-champion": INFANTRY,
   "shield-captain-allarus": TERMINATORS,
   "shield-captain-jetbike": JETBIKES,
-  "knight-centura": SISTERS,
 };
 
 export function isCharacter(unitId: string): boolean {
@@ -483,7 +484,7 @@ export function isSupport(unitId: string): boolean {
   return unitId in SUPPORT_TARGETS;
 }
 
-/** A Support character may join this bodyguard unit. A Leader must already be attached. */
+/** A Support character may join this bodyguard unit, with or without a Leader. */
 export function canSupport(supportUnitId: string, bodyUnitId: string): boolean {
   return SUPPORT_TARGETS[supportUnitId]?.includes(bodyUnitId) ?? false;
 }
@@ -532,9 +533,8 @@ export function attachmentMates<T extends AttachmentLink>(entry: T, entries: rea
 }
 
 /**
- * One Leader and one Support per bodyguard. Support stays attached only while
- * that bodyguard still has a Leader. Dropping the Leader detaches Support
- * and leaves the Support model in the army.
+ * One Leader and one Support per bodyguard. Support does not need a Leader.
+ * Removing the Leader leaves the Support character attached.
  */
 export function reconcileAttachments<T extends AttachmentLink>(entries: readonly T[], detachments: readonly string[] = []): T[] {
   const ids = new Set(entries.map((entry) => entry.id));
@@ -558,9 +558,6 @@ export function reconcileAttachments<T extends AttachmentLink>(entries: readonly
     if (taken.has(entry.attachedTo)) entry.attachedTo = undefined;
     else taken.add(entry.attachedTo);
   }
-  for (const entry of next) {
-    if (entry.attachedTo && isSupport(entry.unitId) && !leaderBodies.has(entry.attachedTo)) entry.attachedTo = undefined;
-  }
   return next;
 }
 
@@ -576,7 +573,7 @@ export function attachSummary(unitId: string): string | null {
     case "shield-captain-jetbike":
       return "Attaches to jetbikes. Not Venatari.";
     case "knight-centura":
-      return "Attaches to Sisters squads. Not the Rhino.";
+      return "Supports Prosecutor, Vigilator, or Witchseeker Squads. Not the Rhino.";
     case "coteaz":
     case "draxus":
     case "greyfax":
@@ -586,7 +583,7 @@ export function attachSummary(unitId: string): string | null {
     case "rogue-trader":
       return "Attaches to Imperial Navy Breachers or Voidsmen-at-Arms.";
     case "ministorum-priest":
-      return "Supports a unit that already has a Leader, from the units on its sheet.";
+      return "Supports Exaction Squad, Breachers, Inquisitorial Agents, Sanctifiers, Sisters of Battle Squad, Subductors, or Vigilants.";
     case "artemis":
     case "watch-master":
       return "Attaches to an Aquila Kill Team or a Deathwatch Kill Team.";

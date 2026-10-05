@@ -447,6 +447,8 @@ export const DATASHEETS: Record<string, Datasheet> = {
         name: "Corner the Quarry",
         rule: "A unit that is not a Monster or Vehicle and Falls Back while engaged must use Desperate Escape. If it is battle-shocked, −1 to those Hazard rolls.",
       },
+      { name: "Support", rule: "Prosecutor Squad, Vigilator Squad, Witchseeker Squad." },
+      { name: "Rules", rule: "Support." },
     ],
   },
   prosecutors: {
@@ -1700,7 +1702,7 @@ export const KEYWORDS: Record<string, { keywords: string; faction: string }> = {
     faction: "Adeptus Custodes",
   },
   telemon: { keywords: "Vehicle, Dreadnought, Imperium, Walker", faction: "Adeptus Custodes" },
-  "knight-centura": { keywords: "Infantry, Anathema Psykana, Character, Imperium", faction: "Anathema Psykana" },
+  "knight-centura": { keywords: "Infantry, Anathema Psykana, Character, Imperium, Support", faction: "Anathema Psykana" },
   prosecutors: { keywords: "Infantry, Anathema Psykana, Imperium", faction: "Anathema Psykana" },
   witchseekers: { keywords: "Infantry, Anathema Psykana, Imperium", faction: "Anathema Psykana" },
   rhino: {

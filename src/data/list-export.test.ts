@@ -20,16 +20,24 @@ function list(entries: ShareEntry[], extra: Partial<ShareList> = {}): ShareList 
 }
 
 describe("support attachment", () => {
-  it("lets the Ministorum Priest support a led unit and not lead one", () => {
+  it("lets Support characters join eligible units without leading them", () => {
     assert.equal(isSupport("ministorum-priest"), true);
+    assert.equal(isSupport("knight-centura"), true);
     assert.equal(isSupport("inquisitor"), false);
     assert.equal(canLead("ministorum-priest", "sisters-squad"), false);
+    assert.equal(canLead("knight-centura", "vigilators"), false);
     assert.equal(canSupport("ministorum-priest", "sisters-squad"), true);
+    assert.equal(canSupport("ministorum-priest", "exaction"), true);
     assert.equal(canSupport("ministorum-priest", "wardens"), false);
+    assert.equal(canSupport("knight-centura", "prosecutors"), true);
+    assert.equal(canSupport("knight-centura", "vigilators"), true);
+    assert.equal(canSupport("knight-centura", "witchseekers"), true);
+    assert.equal(canSupport("knight-centura", "sisters-squad"), false);
+    assert.equal(canSupport("knight-centura", "rhino"), false);
     assert.equal(canLead("inquisitor", "sisters-squad"), true);
   });
 
-  it("drops support when the leader is no longer attached", () => {
+  it("keeps Support attached when the unit has no Leader", () => {
     const body: AttachmentLink = { id: "body", unitId: "sisters-squad" };
     const leader: AttachmentLink = { id: "leader", unitId: "inquisitor", attachedTo: "body" };
     const priest: AttachmentLink = { id: "priest", unitId: "ministorum-priest", attachedTo: "body" };
@@ -38,7 +46,7 @@ describe("support attachment", () => {
     assert.equal(kept.find((item) => item.id === "leader")?.attachedTo, "body");
 
     const leaderGone = reconcileAttachments([priest, body]);
-    assert.equal(leaderGone.find((item) => item.id === "priest")?.attachedTo, undefined);
+    assert.equal(leaderGone.find((item) => item.id === "priest")?.attachedTo, "body");
 
     const leaderMoved = reconcileAttachments([
       { ...leader, attachedTo: "other" },
@@ -46,8 +54,17 @@ describe("support attachment", () => {
       body,
       { id: "other", unitId: "exaction" },
     ]);
-    assert.equal(leaderMoved.find((item) => item.id === "priest")?.attachedTo, undefined);
+    assert.equal(leaderMoved.find((item) => item.id === "priest")?.attachedTo, "body");
     assert.equal(leaderMoved.find((item) => item.id === "leader")?.attachedTo, "other");
+
+    const sisters: AttachmentLink = { id: "squad", unitId: "vigilators" };
+    const centura: AttachmentLink = { id: "centura", unitId: "knight-centura", attachedTo: "squad" };
+    const alone = reconcileAttachments([centura, sisters]);
+    assert.equal(alone.find((item) => item.id === "centura")?.attachedTo, "squad");
+
+    const tank: AttachmentLink = { id: "tank", unitId: "rhino" };
+    const wrongBody = reconcileAttachments([{ ...centura, attachedTo: "tank" }, tank]);
+    assert.equal(wrongBody.find((item) => item.id === "centura")?.attachedTo, undefined);
   });
 });
 
@@ -158,6 +175,54 @@ describe("formatShareList", () => {
         ].join("\n"),
       ].join("\n"),
     );
+  });
+
+  it("prints Support then Bodyguard when no Leader is attached", () => {
+    const text = formatShareList(
+      list(
+        [
+          entry({
+            id: "centura",
+            unitId: "knight-centura",
+            name: "Knight Centura",
+            models: 1,
+            cost: 55,
+            attachedTo: "squad",
+            gear: { weapon: "blade" },
+          }),
+          entry({
+            id: "squad",
+            unitId: "vigilators",
+            name: "Vigilators",
+            models: 4,
+            cost: 50,
+          }),
+        ],
+        { detachmentNames: undefined, total: 105 },
+      ),
+    );
+    assert.equal(
+      text,
+      [
+        "The Ten Thousand",
+        "105 pts / 2000 pts",
+        "",
+        [
+          "Knight Centura (55 points)",
+          "• Attached as: Support (Character)",
+          "  • 1x Executioner greatblade",
+          "",
+          "Vigilators (50 points)",
+          "• Attached as: Bodyguard",
+          "  • 4x Vigilator",
+          "    • 4x Executioner greatblade",
+        ].join("\n"),
+      ].join("\n"),
+    );
+    const supportAt = text.indexOf("Attached as: Support");
+    const bodyAt = text.indexOf("Attached as: Bodyguard");
+    assert.ok(supportAt !== -1 && supportAt < bodyAt);
+    assert.equal(text.includes("Attached as: Leader"), false);
   });
 
   it("splits a multi-model squad when one model takes extra wargear", () => {
