@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ARMY_RULES } from "@/data/rules";
+import { ARMY_RULES, katahByName } from "@/data/rules";
 import { detachmentById, ENHANCEMENTS, enhancementsFor } from "@/data/enhancements";
 import { datasheetById } from "@/data/datasheets";
+import { MISSIONS, matchedPair, matchupText, missionByName, type MissionAction, type MissionCard } from "@/data/missions";
 import {
   canTarget,
   keywordsFor,
@@ -22,18 +23,21 @@ export type PlayEntry = {
   cost: number;
   warlord: boolean;
   enhancement?: string;
+  enhancementId?: string;
+  enhancementWeapon?: string;
   gearText?: string;
   gear?: Record<string, string>;
   attachedTo?: string;
 };
 
-type Tab = "list" | "army" | "core" | "detachments" | "stratagems";
+type Tab = "list" | "army" | "core" | "detachments" | "mission" | "stratagems";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "list", label: "List" },
   { id: "army", label: "Army" },
   { id: "core", label: "Core" },
   { id: "detachments", label: "Detachments" },
+  { id: "mission", label: "Mission" },
   { id: "stratagems", label: "Stratagems" },
 ];
 
@@ -96,9 +100,6 @@ export function PlayView({
   const attachedBodies = new Set(entries.flatMap((entry) => (entry.attachedTo ? [entry.attachedTo] : [])));
   const shown = listFilter === "enhancements" ? entries.filter((entry) => entry.enhancement) : entries;
   const openEntry = entries.find((entry) => entry.id === sheetEntry);
-  const openEnhancement = openEntry?.enhancement
-    ? ENHANCEMENTS.find((enhancement) => enhancement.name === openEntry.enhancement)
-    : undefined;
   const main =
     mainDisposition && dispositionChoices.includes(mainDisposition)
       ? mainDisposition
@@ -285,7 +286,8 @@ export function PlayView({
                 <article key={sheet.id} className="flex flex-col gap-3">
                   <h2 className="font-display text-2xl">{sheet.name}</h2>
                   <p className="text-xs text-muted">
-                    {sheet.dp} DP{sheet.unique ? " · Shield Host" : ""}
+                    {sheet.dp} DP
+                    {sheet.unique ? ` · Shield Host${sheet.flavor ? ` — ${sheet.flavor}` : ""}` : ""}
                   </p>
                   <section>
                     <h3 className="text-xs tracking-wide text-gold uppercase">Force disposition</h3>
@@ -302,7 +304,10 @@ export function PlayView({
                   {sheet.katah ? (
                     <section>
                       <h3 className="text-xs tracking-wide text-gold uppercase">Favoured Ka’tah · {sheet.katah.name}</h3>
-                      <p className="mt-1 text-sm">{sheet.katah.effect}</p>
+                      {katahByName(sheet.katah.name) ? (
+                        <p className="mt-1 text-sm">{katahByName(sheet.katah.name)!.rule}</p>
+                      ) : null}
+                      <p className="mt-1 text-sm">Additional effect: {sheet.katah.effect}</p>
                     </section>
                   ) : null}
                   {taken.length > 0 ? (
@@ -324,6 +329,8 @@ export function PlayView({
           </div>
         )
       ) : null}
+
+      {tab === "mission" ? <MissionTab main={main} /> : null}
 
       {tab === "stratagems" ? (
         <div className="flex flex-col gap-4">
@@ -387,12 +394,153 @@ export function PlayView({
         <DatasheetView
           unitId={openEntry.unitId}
           unitName={openEntry.name}
+          models={openEntry.models}
           gear={openEntry.gear}
-          enhancement={openEnhancement ? { name: openEnhancement.name, rule: openEnhancement.rule } : undefined}
+          enhancementId={openEntry.enhancementId}
+          enhancementWeapon={openEntry.enhancementWeapon}
           listOnly
           onClose={() => setSheetEntry(null)}
         />
       ) : null}
     </main>
+  );
+}
+
+function MissionTab({ main }: { main?: string }) {
+  const [theirName, setTheirName] = useState<string | null>(null);
+  const yourName = main ?? "";
+  const opponent = theirName ?? MISSIONS.find((mission) => mission.name !== yourName)?.name ?? yourName;
+  const yours = missionByName(yourName);
+  const theirs = missionByName(opponent);
+  const pair = matchedPair(yourName, opponent);
+
+  return (
+    <div className="flex min-w-0 flex-col gap-6">
+      <p className="text-sm text-muted">Each player scores only their own card.</p>
+      <div className="flex min-w-0 flex-col gap-3">
+        <p className="text-sm">
+          <span className="text-xs tracking-wide text-gold uppercase">Your disposition</span>
+          <span className="mt-1 block">{yourName || "Choose a main disposition on the list."}</span>
+        </p>
+        {yours ? <p className="text-sm text-muted">{yours.summary}</p> : null}
+      </div>
+      {yours && theirs && pair ? (
+        <div key={`${yours.name}-${theirs.name}`} className="section-open flex min-w-0 flex-col gap-6">
+          <DispositionPick
+            label="Their disposition"
+            value={opponent}
+            options={MISSIONS.map((mission) => mission.name)}
+            onChange={setTheirName}
+          />
+          <p className="text-sm text-muted">{theirs.summary}</p>
+          <section>
+            <h2 className="text-xs tracking-wide text-gold uppercase">Disposition</h2>
+            <p className="mt-1 text-sm">{matchupText(yours.name, theirs.name)}</p>
+          </section>
+          <section className="flex min-w-0 flex-col gap-4 border-t border-line pt-4">
+            <h2 className="text-sm text-gold">
+              {pair.yours.name} vs {pair.theirs.name}
+            </h2>
+            <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+              <MissionCardView side="You" disposition={yours.name} card={pair.yours} />
+              <MissionCardView side="Them" disposition={theirs.name} card={pair.theirs} />
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DispositionPick({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  if (options.length < 2) {
+    return (
+      <p className="text-sm">
+        <span className="text-xs tracking-wide text-gold uppercase">{label}</span>
+        <span className="mt-1 block">{value}</span>
+      </p>
+    );
+  }
+  return (
+    <label className="flex w-fit max-w-full flex-col items-start text-xs text-muted">
+      {label}
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="weapon-select mt-1 h-8 max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg"
+      >
+        {options.map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function MissionActionView({ action }: { action: MissionAction }) {
+  const rows = [
+    ["Starts", action.starts],
+    ["Units", action.units],
+    ["Use limit", action.limit],
+    ["Completes", action.completes],
+    ["Effect", action.effect],
+    action.restrictions ? ["Restrictions", action.restrictions] : null,
+  ].filter((row): row is [string, string] => row != null);
+  return (
+    <div className="mt-3">
+      <p className="text-sm font-medium">
+        {action.name} <span className="text-xs text-gold">{action.kind}</span>
+      </p>
+      <ul className="mt-1 flex flex-col gap-1">
+        {rows.map(([label, value]) => (
+          <li key={label} className="min-w-0 text-sm break-words">
+            <span className="text-xs text-gold">{label}. </span>
+            {value}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function MissionCardView({ side, disposition, card }: { side: string; disposition: string; card: MissionCard }) {
+  return (
+    <article className="min-w-0">
+      <p className="text-xs tracking-wide text-gold uppercase">
+        {side} · {disposition}
+      </p>
+      <h3 className="mt-1 font-display text-xl">{card.name}</h3>
+      <p className="mt-2 text-sm text-muted">{card.flavor}</p>
+      {card.rule ? <p className="mt-2 text-sm">{card.rule}</p> : null}
+      <ul className="mt-3 flex flex-col gap-3">
+        {card.windows.map((window, index) => (
+          <li key={`${window.round}-${window.when}-${index}`} className="min-w-0">
+            <p className="text-xs tracking-wide text-gold uppercase">{window.round}</p>
+            {window.when ? <p className="text-xs text-muted">{window.when}</p> : null}
+            {window.scores.map((score) => (
+              <p key={`${score.pays}-${score.points}`} className="text-sm break-words">
+                {score.alt ? "Or " : ""}
+                {score.pays} <span className="text-gold">{score.points}</span>
+                {score.cumulative ? <span className="text-gold"> cumulative</span> : null}
+              </p>
+            ))}
+          </li>
+        ))}
+      </ul>
+      {card.action ? <MissionActionView action={card.action} /> : null}
+    </article>
   );
 }

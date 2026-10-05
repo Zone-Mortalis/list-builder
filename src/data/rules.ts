@@ -54,6 +54,10 @@ export const ARMY_RULES: ArmyRule[] = [
 ];
 
 
+export function katahByName(name: string): { name: string; rule: string } | undefined {
+  return ARMY_RULES.find((rule) => rule.name === "Martial Ka’tah")?.parts?.find((part) => part.name === name);
+}
+
 export const KEYWORD_RULES: string[] = [
   "Keywords are tags, not a glossary. A rule that names a keyword only applies to units that have it.",
   "Singular and plural are the same.",

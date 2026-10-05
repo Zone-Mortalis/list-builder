@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Crown, Minus, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Crown, Minus, Plus, Trash2 } from "lucide-react";
 import { DatasheetView, WargearPicker } from "@/components/datasheet-view";
 import { DetachmentSheet } from "@/components/detachment-sheet";
 import { CoreRules } from "@/components/core-rules";
 import { Settings, applySettings, loadReduceMotion, loadTheme, type ThemeId } from "@/components/settings";
 import { PlayView, type PlayEntry } from "@/components/play-view";
 import { datasheetById } from "@/data/datasheets";
+import { chosenWeapon, weaponChoices } from "@/data/sheet-mods";
+import { katahByName } from "@/data/rules";
 import {
   DETACHMENTS,
   ENHANCEMENTS,
@@ -13,15 +15,17 @@ import {
   MAX_ENHANCEMENTS,
   detachmentById,
   enhancementById,
+  enhancementsFor,
+  bearerNames,
   repeatable,
   spentDp,
   type Enhancement,
 } from "@/data/enhancements";
 import {
-  CATEGORIES,
   UNITS,
   attachSummary,
   canLead,
+  canBeWarlord,
   armedWith,
   cleanGear,
   categoryLimit,
@@ -33,13 +37,18 @@ import {
   isCharacter,
   ordinal,
   priceLine,
+  retinueCounting,
   sizeOf,
   squadCost,
   unitById,
   unitCategory,
+  withinCategoryCap,
   type Unit,
   type UnitSize,
 } from "@/data/units";
+
+const CUSTODES_FILTERS = ["Characters", "Battleline", "Infantry", "Elites", "Fast Attack", "Heavy Support", "Transports"];
+const ALLIED_FILTERS = ["Imperial Agents", "Imperial Retinue", "Requisitioned", "Knights", "Armigers", "Titans"];
 
 type Entry = {
   id: string;
@@ -48,6 +57,8 @@ type Entry = {
   addedAt?: number;
   attachedTo?: string;
   enhancementId?: string;
+  /** Equipped weapon an enhancement modifies, when the enhancement changes a weapon. */
+  enhancementWeapon?: string;
   gear?: Record<string, string>;
 };
 
@@ -63,7 +74,7 @@ type Roster = {
 
 type SavedList = Roster & { id: string; updatedAt: number };
 
-type Screen = "home" | "saved" | "detachments" | "units" | "play";
+type Screen = "home" | "saved" | "library" | "detachments" | "units" | "play";
 
 type Priced = Entry & { copy: number; cost: number; unit: Unit; size: UnitSize };
 
@@ -87,7 +98,7 @@ function price(entries: Entry[]): Priced[] {
     const bonus = entry.enhancementId ? (enhancementById(entry.enhancementId)?.points ?? 0) : 0;
     costById.set(entry.id, {
       copy: copyIndex + 1,
-      cost: squadCost(unit, entry.models, copyIndex) + bonus + gearPoints(entry.unitId, entry.gear),
+      cost: squadCost(unit, entry.models, copyIndex) + bonus + gearPoints(entry.unitId, entry.gear, entry.models),
     });
   }
   return entries.flatMap((entry) => {
@@ -109,9 +120,7 @@ function categoryCount(category: string, entries: Entry[], detachments: readonly
 function nextCost(unit: Unit, models: number, entries: Entry[], detachments: readonly string[]): number | null {
   const ofUnit = entries.filter((entry) => entry.unitId === unit.id).length;
   if (ofUnit >= copyLimit(unit, detachments)) return null;
-  const category = unitCategory(unit, detachments);
-  const cap = categoryLimit(category);
-  if (cap != null && categoryCount(category, entries, detachments) >= cap) return null;
+  if (!withinCategoryCap(unit, entries, detachments)) return null;
   if (!sizeOf(unit, models)) return null;
   return squadCost(unit, models, ofUnit);
 }
@@ -138,7 +147,13 @@ function arrange(entries: Entry[], warlordId?: string): Entry[] {
   };
 
   const warlord = warlordId ? byId.get(warlordId) : undefined;
-  if (warlord && isCharacter(warlord.unitId)) pushCharacter(warlord);
+  if (warlord && canBeWarlord(warlord.unitId)) {
+    if (isCharacter(warlord.unitId)) pushCharacter(warlord);
+    else {
+      result.push(warlord);
+      used.add(warlord.id);
+    }
+  }
   for (const entry of entries) {
     if (isCharacter(entry.unitId)) pushCharacter(entry);
   }
@@ -155,12 +170,18 @@ function settle(roster: Roster): Roster {
   const counts = new Map<string, number>();
   const categoryCounts = new Map<string, number>();
   const keepIds = new Set<string>();
+  const retinue: typeof ordered = [];
   for (const entry of ordered) {
     const unit = unitById(entry.unitId);
     if (!unit) continue;
     const count = counts.get(entry.unitId) ?? 0;
     if (count >= copyLimit(unit, roster.detachments)) continue;
     const category = unitCategory(unit, roster.detachments);
+    if (category === "Imperial Retinue") {
+      counts.set(entry.unitId, count + 1);
+      retinue.push(entry);
+      continue;
+    }
     const cap = categoryLimit(category);
     const inCategory = categoryCounts.get(category) ?? 0;
     if (cap != null && inCategory >= cap) continue;
@@ -168,16 +189,35 @@ function settle(roster: Roster): Roster {
     categoryCounts.set(category, inCategory + 1);
     keepIds.add(entry.id);
   }
+  const sponsors = ordered.filter((entry) => keepIds.has(entry.id));
+  let freeAgents = sponsors.filter((entry) => ["coteaz", "draxus", "greyfax", "inquisitor"].includes(entry.unitId)).length;
+  let freeVoidsmen = sponsors.filter((entry) => entry.unitId === "navigator" || entry.unitId === "rogue-trader").length;
+  let retinueRoom = categoryLimit("Imperial Retinue") ?? 2;
+  for (const entry of retinue) {
+    if (entry.unitId === "inquisitorial-agents" && freeAgents > 0) {
+      freeAgents -= 1;
+      keepIds.add(entry.id);
+      continue;
+    }
+    if (entry.unitId === "voidsmen" && freeVoidsmen > 0) {
+      freeVoidsmen -= 1;
+      keepIds.add(entry.id);
+      continue;
+    }
+    if (retinueRoom <= 0) continue;
+    retinueRoom -= 1;
+    keepIds.add(entry.id);
+  }
   const kept = roster.entries.filter((entry) => keepIds.has(entry.id));
   const ids = new Set(kept.map((entry) => entry.id));
   const entries = kept.map((entry) =>
     entry.attachedTo && !ids.has(entry.attachedTo) ? { ...entry, attachedTo: undefined } : entry,
   );
-  const characters = entries.filter((entry) => isCharacter(entry.unitId));
-  const warlordId = characters.some((entry) => entry.id === roster.warlordId)
+  const eligible = entries.filter((entry) => canBeWarlord(entry.unitId));
+  const warlordId = eligible.some((entry) => entry.id === roster.warlordId)
     ? roster.warlordId
-    : characters.length === 1
-      ? characters[0]!.id
+    : eligible.length === 1
+      ? eligible[0]!.id
       : undefined;
   return { ...roster, warlordId, mainDisposition: cleanMainDisposition(roster.detachments, roster.mainDisposition), entries: arrange(entries, warlordId) };
 }
@@ -252,7 +292,8 @@ function rosterFrom(parsed: Partial<Roster> | null): Roster {
         if (entry.unitId === "shield-captain-shield") next.gear = { weapon: "shield-pyrithite" };
         if (typeof entry.attachedTo === "string") next.attachedTo = entry.attachedTo;
         if (typeof entry.enhancementId === "string") next.enhancementId = entry.enhancementId;
-        const gear = cleanGear(next.unitId, next.gear ?? entry.gear);
+        if (typeof entry.enhancementWeapon === "string") next.enhancementWeapon = entry.enhancementWeapon;
+        const gear = cleanGear(next.unitId, next.gear ?? entry.gear, next.models);
         if (gear) next.gear = gear;
         return [next];
       })
@@ -288,7 +329,14 @@ function rosterFrom(parsed: Partial<Roster> | null): Roster {
       (seenEnhancements.has(enhancement.id) || seenEnhancements.size < MAX_ENHANCEMENTS);
     if (!enhancement || !allowed) {
       delete entry.enhancementId;
+      delete entry.enhancementWeapon;
       continue;
+    }
+    if (enhancement.weaponMod) {
+      const choices = weaponChoices(entry.unitId, entry.models, entry.gear, enhancement.weaponMod.scope);
+      entry.enhancementWeapon = choices.some((choice) => choice.id === entry.enhancementWeapon) ? entry.enhancementWeapon : choices[0]?.id;
+    } else {
+      delete entry.enhancementWeapon;
     }
     seenEnhancements.add(enhancement.id);
   }
@@ -298,7 +346,7 @@ function rosterFrom(parsed: Partial<Roster> | null): Roster {
     : undefined;
   const warlordId = typeof parsed.warlordId === "string" ? parsed.warlordId : undefined;
   return settle({
-    name: typeof parsed.name === "string" && parsed.name.trim() ? parsed.name : EMPTY.name,
+    name: typeof parsed.name === "string" ? parsed.name : EMPTY.name,
     limit: typeof parsed.limit === "number" && parsed.limit > 0 ? parsed.limit : EMPTY.limit,
     detachments,
     mainDisposition: typeof parsed.mainDisposition === "string" ? parsed.mainDisposition : legacyMain,
@@ -421,16 +469,14 @@ function DetachmentChoices({
                     type="button"
                     disabled={blocked}
                     onClick={() => onToggle(detachment.id)}
-                    className="flex min-h-11 w-full flex-col items-start text-left disabled:cursor-not-allowed"
+                    className="flex min-h-11 w-full min-w-0 flex-col items-start text-left disabled:cursor-not-allowed"
                   >
-                    <span className="flex w-full items-baseline justify-between gap-3">
-                      <span className="text-base font-medium">{detachment.name}</span>
-                      <span className="text-sm text-gold">{detachment.dp} DP</span>
-                    </span>
-                    <span className="mt-1 text-xs text-muted">
-                      {detachment.unique ? "Shield Host" : "Detachment"}
-                      {detachment.rule ? ` · ${detachment.rule.name}` : ""}
-                    </span>
+                    <span className="text-base font-medium">{detachment.name}</span>
+                    {detachment.unique ? (
+                      <span className="mt-1 min-w-0 text-xs break-words text-muted">
+                        Shield Host{detachment.flavor ? ` — ${detachment.flavor}` : ""}
+                      </span>
+                    ) : null}
                     <span className="mt-1 text-xs text-muted">
                       Force disposition: {detachment.dispositions.join(", ")}
                     </span>
@@ -472,12 +518,215 @@ function HomeButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+function DetachmentLibrary({ onHome }: { onHome: () => void }) {
+  const groups = [
+    { title: "Shield Hosts", items: orderedDetachments(true) },
+    { title: "Other detachments", items: orderedDetachments(false) },
+  ];
+  const [id, setId] = useState(groups[0]?.items[0]?.id ?? "");
+  const detachment = detachmentById(id) ?? groups[0]?.items[0];
+  const katah = detachment?.katah ? katahByName(detachment.katah.name) : undefined;
+  const enhancements = detachment ? enhancementsFor(detachment.id) : [];
+
+  return (
+    <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-6">
+      <header className="flex flex-col gap-3">
+        <HomeButton onClick={onHome} />
+        <div>
+          <p className="text-xs font-medium tracking-wide text-gold uppercase">Adeptus Custodes</p>
+          <h1 className="mt-1 font-display text-3xl leading-tight">Detachments</h1>
+          <p className="mt-3 max-w-xl text-sm text-muted">Pick one detachment. The rest stay in the menu.</p>
+        </div>
+        <label className="flex w-full max-w-sm flex-col items-start text-xs text-muted">
+          Detachment
+          <select
+            aria-label="Detachment"
+            value={detachment?.id ?? ""}
+            onChange={(event) => setId(event.target.value)}
+            className="weapon-select mt-1 h-8 w-full max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg"
+          >
+            {groups.map((group) => (
+              <optgroup key={group.title} label={group.title}>
+                {group.items.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+      </header>
+      {detachment ? (
+        <article className="section-open flex min-w-0 flex-col gap-4">
+          <div>
+            <h2 className="font-display text-2xl">{detachment.name}</h2>
+            <p className="mt-1 text-xs text-muted">
+              {detachment.dp} DP
+              {detachment.unique ? ` · Shield Host${detachment.flavor ? ` — ${detachment.flavor}` : ""}` : ""}
+            </p>
+            <p className="mt-2 text-sm">Force disposition: {detachment.dispositions.join(", ")}</p>
+          </div>
+          {detachment.rule ? (
+            <section>
+              <h3 className="text-xs tracking-wide text-gold uppercase">{detachment.rule.name}</h3>
+              <p className="mt-1 text-sm">{detachment.rule.text}</p>
+            </section>
+          ) : null}
+          {detachment.katah ? (
+            <section>
+              <h3 className="text-xs tracking-wide text-gold uppercase">Favoured Ka’tah · {detachment.katah.name}</h3>
+              {katah ? <p className="mt-1 text-sm">{katah.rule}</p> : null}
+              <p className="mt-1 text-sm">Additional effect: {detachment.katah.effect}</p>
+            </section>
+          ) : null}
+          {enhancements.length > 0 ? (
+            <section>
+              <h3 className="text-xs tracking-wide text-gold uppercase">Enhancements</h3>
+              <ul className="mt-2 flex flex-col gap-3">
+                {enhancements.map((enhancement) => (
+                  <li key={enhancement.id}>
+                    <p className="text-sm font-medium">
+                      {enhancement.name} · {enhancement.points} pts
+                      {enhancement.once ? " · one per army" : enhancement.upgrade ? " · upgrade" : ""}
+                    </p>
+                    <p className="text-sm text-muted">{enhancement.rule}</p>
+                    <p className="text-xs text-muted">{bearerNames(enhancement.targets)}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {detachment.stratagems.length > 0 ? (
+            <section>
+              <h3 className="text-xs tracking-wide text-gold uppercase">Stratagems</h3>
+              <ul className="mt-2 flex flex-col gap-3">
+                {detachment.stratagems.map((stratagem) => (
+                  <li key={stratagem.name}>
+                    <p className="text-sm font-medium">
+                      {stratagem.name} · {stratagem.cp} CP
+                    </p>
+                    <p className="text-xs text-gold">{stratagem.when}</p>
+                    <p className="text-sm text-muted">{stratagem.rule}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </article>
+      ) : null}
+    </main>
+  );
+}
+
+function EnhancementPick({
+  unitId,
+  unitName,
+  models,
+  gear,
+  value,
+  weapon,
+  choices,
+  onChange,
+  onWeapon,
+}: {
+  unitId: string;
+  unitName: string;
+  models: number;
+  gear?: Record<string, string>;
+  value: string;
+  weapon?: string;
+  choices: Enhancement[];
+  onChange: (enhancementId: string) => void;
+  onWeapon: (weaponId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = choices.find((enhancement) => enhancement.id === value);
+  const weapons = selected?.weaponMod ? weaponChoices(unitId, models, gear, selected.weaponMod.scope) : [];
+  const picked = chosenWeapon(weapons, weapon);
+  return (
+    <div className="mt-2 flex w-full min-w-0 flex-col items-start">
+      <span className="text-xs text-muted">Enhancement</span>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={`Enhancement for ${unitName}`}
+        onClick={() => setOpen((current) => !current)}
+        className="mt-1 inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-lg border border-line bg-bg px-2 text-xs text-fg"
+      >
+        <span className="min-w-0 truncate">
+          {selected ? `${selected.name} +${selected.points} pts` : "None"}
+        </span>
+        <ChevronDown className={`size-3.5 shrink-0 text-gold ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+      </button>
+      {selected && !open ? <p className="mt-1 max-w-full text-xs break-words text-muted">{selected.rule}</p> : null}
+      {selected?.weaponMod ? (
+        weapons.length > 1 ? (
+          <label className="mt-2 flex w-fit max-w-full flex-col items-start text-xs text-muted">
+            {selected.weaponMod.scope === "ranged" ? "Ranged weapon" : "Melee weapon"}
+            <select
+              aria-label={`Weapon modified by ${selected.name}`}
+              value={picked?.id ?? ""}
+              onChange={(event) => onWeapon(event.target.value)}
+              className="wargear-select mt-1 h-8 w-fit max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg"
+            >
+              {weapons.map((choice) => (
+                <option key={choice.id} value={choice.id}>
+                  {choice.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <p className="mt-1 text-xs text-muted">
+            {weapons.length === 1 ? `Modifies ${weapons[0]!.label}` : `No equipped ${selected.weaponMod.scope} weapon.`}
+          </p>
+        )
+      ) : null}
+      {open ? (
+        <div className="section-open mt-1 flex w-full min-w-0 flex-col">
+          <button
+            type="button"
+            onClick={() => {
+              onChange("");
+              setOpen(false);
+            }}
+            className={`border-b border-line py-2 text-left text-xs ${value ? "text-muted" : "text-gold"}`}
+          >
+            None
+          </button>
+          {choices.map((enhancement) => (
+            <button
+              key={enhancement.id}
+              type="button"
+              onClick={() => {
+                onChange(enhancement.id);
+                setOpen(false);
+              }}
+              className="border-b border-line py-2 text-left last:border-b-0"
+            >
+              <span className="flex items-baseline justify-between gap-3">
+                <span className={`min-w-0 text-xs break-words ${enhancement.id === value ? "text-gold" : ""}`}>
+                  {enhancement.name}
+                  {enhancement.once ? " · one per army" : enhancement.upgrade ? " · upgrade" : ""}
+                </span>
+                <span className="shrink-0 text-xs text-gold">+{enhancement.points} pts</span>
+              </span>
+              <span className="mt-0.5 block text-xs break-words text-muted">{enhancement.rule}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function ListBuilder() {
   const [lists, setLists] = useState<SavedList[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>("home");
   const [ready, setReady] = useState(false);
-  const [category, setCategory] = useState<string>("All");
+  const [category, setCategory] = useState<string>("Characters");
   const [panel, setPanel] = useState<"units" | "list">("units");
   const [sizes, setSizes] = useState<Record<string, number>>({});
   const [copied, setCopied] = useState(false);
@@ -562,7 +811,7 @@ export function ListBuilder() {
             unitId: unit.id,
             models,
             addedAt: nextStamp(current.entries),
-            gear: cleanGear(unit.id, draftGear[unit.id]),
+            gear: cleanGear(unit.id, draftGear[unit.id], models),
           },
         ],
       });
@@ -608,20 +857,23 @@ export function ListBuilder() {
       const next = { ...(current[unitId] ?? {}) };
       if (!choiceId) delete next[groupId];
       else next[groupId] = choiceId;
+      if (unitId === "knight-destrier") {
+        const left = next["mount-a"];
+        const right = next["mount-b"];
+        if (left && left === right && (left === "chainsword" || left === "spear")) return current;
+      }
+      if (unitId === "inquisitor" && next.melee === "force" && next.gifts !== "gifts") {
+        if (groupId === "melee") return current;
+        next.melee = "melee";
+      }
       return { ...current, [unitId]: next };
     });
   }
 
-  function setEntryGear(entryId: string, groupId: string, choiceId: string) {
+  function setEnhancementWeapon(entryId: string, weaponId: string) {
     setRoster((current) => ({
       ...current,
-      entries: current.entries.map((entry) => {
-        if (entry.id !== entryId) return entry;
-        const next = { ...(entry.gear ?? {}) };
-        if (!choiceId) delete next[groupId];
-        else next[groupId] = choiceId;
-        return { ...entry, gear: cleanGear(entry.unitId, next) };
-      }),
+      entries: current.entries.map((entry) => (entry.id === entryId ? { ...entry, enhancementWeapon: weaponId } : entry)),
     }));
   }
 
@@ -630,9 +882,14 @@ export function ListBuilder() {
       ...current,
       entries: current.entries.map((entry) => {
         if (entry.id !== entryId) return entry;
-        if (!enhancementId) return { ...entry, enhancementId: undefined };
+        if (!enhancementId) return { ...entry, enhancementId: undefined, enhancementWeapon: undefined };
         const allowed = choicesFor(entry, current).some((enhancement) => enhancement.id === enhancementId);
-        return allowed ? { ...entry, enhancementId } : entry;
+        if (!allowed) return entry;
+        const mod = enhancementById(enhancementId)?.weaponMod;
+        if (!mod) return { ...entry, enhancementId, enhancementWeapon: undefined };
+        const weapons = weaponChoices(entry.unitId, entry.models, entry.gear, mod.scope);
+        const keep = weapons.some((choice) => choice.id === entry.enhancementWeapon);
+        return { ...entry, enhancementId, enhancementWeapon: keep ? entry.enhancementWeapon : weapons[0]?.id };
       }),
     }));
   }
@@ -724,11 +981,11 @@ export function ListBuilder() {
     window.setTimeout(() => setCopied(false), 1600);
   }
 
-  const visible = UNITS.filter((unit) => category === "All" || unitCategory(unit, roster.detachments) === category);
+  const visible = UNITS.filter((unit) => unitCategory(unit, roster.detachments) === category);
 
   function createList() {
     const id = crypto.randomUUID();
-    const list: SavedList = { ...EMPTY, name: "New list", id, updatedAt: Date.now() };
+    const list: SavedList = { ...EMPTY, name: "", id, updatedAt: Date.now() };
     setLists((current) => [list, ...current]);
     setActiveId(id);
     setScreen("detachments");
@@ -738,7 +995,7 @@ export function ListBuilder() {
     const list = lists.find((item) => item.id === id);
     if (!list) return;
     setActiveId(id);
-    setScreen(list.detachments.length ? "units" : "detachments");
+    setScreen(list.name.trim() && list.detachments.length ? "units" : "detachments");
   }
 
   function deleteList(id: string) {
@@ -758,6 +1015,10 @@ export function ListBuilder() {
   }
 
   if (!ready) return <main className="min-h-screen" />;
+
+  if (screen === "library") {
+    return <DetachmentLibrary onHome={() => setScreen("home")} />;
+  }
 
   if (screen === "home" || (!activeId && screen !== "saved")) {
     return (
@@ -781,6 +1042,13 @@ export function ListBuilder() {
             className="min-h-11 rounded-lg border border-line bg-surface px-4 py-4 text-left text-base font-medium"
           >
             View a saved list
+          </button>
+          <button
+            type="button"
+            onClick={() => setScreen("library")}
+            className="min-h-11 rounded-lg border border-line bg-surface px-4 py-4 text-left text-base font-medium"
+          >
+            Detachments
           </button>
           <button
             type="button"
@@ -838,7 +1106,7 @@ export function ListBuilder() {
                     className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-4 py-4 text-left"
                   >
                     <span className="flex items-baseline justify-between gap-3">
-                      <span className="truncate text-base font-medium">{list.name}</span>
+                      <span className="truncate text-base font-medium">{list.name.trim() || "Unnamed"}</span>
                       <span className="shrink-0 text-sm text-gold">
                         {points} pts / {list.limit} pts
                       </span>
@@ -881,7 +1149,7 @@ export function ListBuilder() {
                 onClick={() => setCoreOpen(true)}
                 className="min-h-11 rounded-lg border border-line px-3 py-2 text-sm"
               >
-                Core rules
+                Army rules
               </button>
               <button
                 type="button"
@@ -919,18 +1187,21 @@ export function ListBuilder() {
         <div className="fixed inset-x-0 bottom-0 border-t border-line bg-bg pb-[env(safe-area-inset-bottom)]">
           <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3">
             <p className="text-sm text-muted">
-              {dispositionChoices(roster.detachments).length > 1 && !roster.mainDisposition
-                ? "Choose a main disposition"
-                : `${spentDp(roster.detachments)} / ${MAX_DP} DP`}
+              {!roster.name.trim()
+                ? "Name the list"
+                : dispositionChoices(roster.detachments).length > 1 && !roster.mainDisposition
+                  ? "Choose a main disposition"
+                  : `${spentDp(roster.detachments)} / ${MAX_DP} DP`}
             </p>
             <button
               type="button"
               disabled={
+                !roster.name.trim() ||
                 roster.detachments.length === 0 ||
                 (dispositionChoices(roster.detachments).length > 1 && !roster.mainDisposition)
               }
               onClick={() => {
-                setRoster((current) => ({ ...current, building: true }));
+                setRoster((current) => ({ ...current, name: current.name.trim(), building: true }));
                 setScreen("units");
               }}
               className="min-h-11 rounded-lg bg-gold px-4 py-3 text-sm font-medium text-bg disabled:opacity-40"
@@ -941,7 +1212,7 @@ export function ListBuilder() {
         </div>
       </main>
       {rulesIds ? <DetachmentSheet ids={rulesIds} onClose={() => setRulesIds(null)} /> : null}
-      {coreOpen ? <CoreRules onClose={() => setCoreOpen(false)} /> : null}
+      {coreOpen ? <CoreRules army onClose={() => setCoreOpen(false)} /> : null}
       {settings}
       </>
     );
@@ -956,6 +1227,8 @@ export function ListBuilder() {
       cost: entry.cost,
       warlord: entry.id === roster.warlordId,
       enhancement: entry.enhancementId ? enhancementById(entry.enhancementId)?.name : undefined,
+      enhancementId: entry.enhancementId,
+      enhancementWeapon: entry.enhancementWeapon,
       gearText: gearLine(entry.unitId, entry.gear) || undefined,
       gear: entry.gear,
       attachedTo: entry.attachedTo,
@@ -977,7 +1250,7 @@ export function ListBuilder() {
   }
 
   return (
-    <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl min-w-0 flex-col gap-4 overflow-x-hidden px-4 py-5">
+    <main className="page-enter mx-auto flex min-h-screen w-full max-w-3xl min-w-0 flex-col gap-4 px-4 py-5">
       <header className="flex flex-col gap-3 border-b border-line pb-4">
         <div className="flex items-center justify-between gap-3">
           <button
@@ -989,8 +1262,9 @@ export function ListBuilder() {
           </button>
           <button
             type="button"
+            disabled={!cleanMainDisposition(roster.detachments, roster.mainDisposition)}
             onClick={() => setScreen("play")}
-            className="min-h-11 rounded-lg bg-gold px-3 py-2 text-sm font-medium text-bg"
+            className="min-h-11 rounded-lg bg-gold px-3 py-2 text-sm font-medium text-bg disabled:opacity-40"
           >
             Play
           </button>
@@ -1022,19 +1296,6 @@ export function ListBuilder() {
             />
           </label>
         </div>
-        <div>
-          <div className="mb-2 flex items-baseline justify-between gap-3">
-            <p className={`font-display text-3xl tabular-nums ${over ? "text-danger" : "text-fg"}`}>
-              {total} <span className="font-sans text-base font-normal tracking-normal">pts</span>
-            </p>
-            <p className={`text-sm ${over ? "text-danger" : "text-muted"}`}>
-              {over ? `${Math.abs(remaining)} pts over` : `${remaining} pts left`} of {roster.limit} pts
-            </p>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-raised">
-            <div className={`h-full ${over ? "bg-danger" : "bg-gold"}`} style={{ width: `${fill}%` }} />
-          </div>
-        </div>
         <div className="flex flex-col gap-3">
           <div className="min-w-0">
             <p className="text-sm break-words">
@@ -1044,6 +1305,30 @@ export function ListBuilder() {
               {spentDp(roster.detachments)} / {MAX_DP} DP · {enhancementSlots(roster.entries).size} / {MAX_ENHANCEMENTS}{" "}
               enhancements
             </p>
+            {dispositionChoices(roster.detachments).length > 1 ? (
+              <label className="mt-3 block min-w-0 text-xs text-muted">
+                Main disposition
+                <select
+                  aria-label="Main disposition"
+                  value={
+                    roster.mainDisposition && dispositionChoices(roster.detachments).includes(roster.mainDisposition)
+                      ? roster.mainDisposition
+                      : ""
+                  }
+                  onChange={(event) => setMainDisposition(event.target.value)}
+                  className="mt-1 h-11 w-full max-w-full rounded-lg border border-line bg-bg px-2 text-sm text-fg normal-case"
+                >
+                  <option value="" disabled>
+                    Choose
+                  </option>
+                  {dispositionChoices(roster.detachments).map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <button
@@ -1078,40 +1363,77 @@ export function ListBuilder() {
         </div>
       </header>
 
-      <div className="grid grid-cols-2 gap-2">
-        {(["units", "list"] as const).map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setPanel(key)}
-            className={`min-h-11 rounded-lg border px-3 text-sm ${
-              panel === key ? "border-gold bg-gold text-bg" : "border-line bg-surface text-fg"
-            }`}
-          >
-            {key === "units" ? "Units" : `List (${priced.length})`}
-          </button>
-        ))}
+      <div className="sticky top-0 z-20 -mx-4 border-b border-line bg-bg px-4 py-3">
+        <div className="mb-2 flex items-baseline justify-between gap-3">
+          <p className={`font-display text-3xl tabular-nums ${over ? "text-danger" : "text-fg"}`}>
+            {total} <span className="font-sans text-base font-normal tracking-normal">pts</span>
+          </p>
+          <p className={`text-sm ${over ? "text-danger" : "text-muted"}`}>
+            {over ? `${Math.abs(remaining)} pts over` : `${remaining} pts left`} of {roster.limit} pts
+          </p>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-raised">
+          <div className={`h-full ${over ? "bg-danger" : "bg-gold"}`} style={{ width: `${fill}%` }} />
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {(["units", "list"] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setPanel(key)}
+              className={`min-h-11 rounded-lg border px-3 text-sm ${
+                panel === key ? "border-gold bg-gold text-bg" : "border-line bg-surface text-fg"
+              }`}
+            >
+              {key === "units" ? "Units" : `List (${priced.length})`}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid min-w-0 gap-4">
+      <div className="grid min-w-0 gap-4 overflow-x-hidden">
         <section key={panel === "units" ? "units" : "units-hidden"} className={`min-w-0 ${panel === "list" ? "hidden" : "section-open"}`}>
-          <div className="flex min-w-0 gap-2 overflow-x-auto border-b border-line py-3">
-              {["All", ...CATEGORIES].map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setCategory(item)}
-                  className={`min-h-11 shrink-0 rounded-full border px-3 text-sm ${
-                    category === item ? "border-gold bg-gold text-bg" : "border-line text-muted"
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          {category !== "All" && categoryLimit(category) != null ? (
+          <div className="grid min-w-0 gap-2 border-b border-line py-3">
+            <label className="block min-w-0 text-xs text-muted">
+              Custodes
+              <select
+                aria-label="Custodes"
+                value={CUSTODES_FILTERS.includes(category) ? category : ""}
+                onChange={(event) => setCategory(event.target.value)}
+                className="mt-1 h-11 w-full max-w-full rounded-lg border border-line bg-bg px-2 text-sm text-fg"
+              >
+                <option value="" disabled>
+                  Custodes
+                </option>
+                {CUSTODES_FILTERS.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block min-w-0 text-xs text-muted">
+              Allies
+              <select
+                aria-label="Allies"
+                value={ALLIED_FILTERS.includes(category) ? category : ""}
+                onChange={(event) => setCategory(event.target.value)}
+                className="mt-1 h-11 w-full max-w-full rounded-lg border border-line bg-bg px-2 text-sm text-fg"
+              >
+                <option value="" disabled>
+                  Allies
+                </option>
+                {ALLIED_FILTERS.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {categoryLimit(category) != null ? (
             <p className="pt-2 text-xs text-muted">
-              {categoryCount(category, roster.entries, roster.detachments)} of {categoryLimit(category)} {category}
+              {category === "Imperial Retinue" ? retinueCounting(roster.entries) : categoryCount(category, roster.entries, roster.detachments)} of {categoryLimit(category)} {category}
             </p>
           ) : null}
           <div className="min-w-0">
@@ -1122,7 +1444,7 @@ export function ListBuilder() {
                 const models = chosenModels(unit);
                 const size = sizeOf(unit, models)!;
                 const upcoming = nextCost(unit, models, roster.entries, roster.detachments);
-                const gearCost = gearPoints(unit.id, draftGear[unit.id]);
+                const gearCost = gearPoints(unit.id, draftGear[unit.id], models);
                 const shown = upcoming == null ? null : upcoming + gearCost;
                 const taken = roster.entries.filter((entry) => entry.unitId === unit.id).length;
                 const nextLine = upcoming == null ? null : priceLine(unit, models, taken, { wargear: gearCost });
@@ -1187,6 +1509,7 @@ export function ListBuilder() {
                     {armedWith(unit.id) ? <p className="mt-2 text-xs text-muted">{armedWith(unit.id)}</p> : null}
                     <WargearPicker
                       unitId={unit.id}
+                      models={models}
                       gear={draftGear[unit.id]}
                       onGear={(groupId, choiceId) => setDraft(unit.id, groupId, choiceId)}
                     />
@@ -1231,7 +1554,7 @@ export function ListBuilder() {
             <p className="py-6 text-sm text-muted">Add a unit.</p>
           ) : (
             <ol>
-              {priced.some((entry) => isCharacter(entry.unitId)) && !roster.warlordId ? (
+              {priced.some((entry) => canBeWarlord(entry.unitId)) && !roster.warlordId ? (
                 <li className="border-b border-line py-3 text-sm text-danger">Choose a warlord.</li>
               ) : null}
               {priced.map((entry) => {
@@ -1242,11 +1565,11 @@ export function ListBuilder() {
                     (!priced.some((leader) => leader.attachedTo === candidate.id) || entry.attachedTo === candidate.id),
                 );
                 const leader = priced.find((candidate) => candidate.attachedTo === entry.id);
-                const character = isCharacter(entry.unitId);
+                const character = canBeWarlord(entry.unitId);
                 const warlord = entry.id === roster.warlordId;
                 const kit = gearLineCounted(entry.unitId, entry.gear, entry.models);
                 const line = priceLine(entry.unit, entry.models, entry.copy - 1, {
-                  wargear: gearPoints(entry.unitId, entry.gear),
+                  wargear: gearPoints(entry.unitId, entry.gear, entry.models),
                   enhancement: entry.enhancementId ? (enhancementById(entry.enhancementId)?.points ?? 0) : 0,
                 });
                 return (
@@ -1268,11 +1591,6 @@ export function ListBuilder() {
                     <p className="shrink-0 text-sm text-gold tabular-nums">{entry.cost} pts</p>
                   </div>
                   {kit ? <p className="mt-1 text-xs break-words text-muted">{kit}</p> : null}
-                  <WargearPicker
-                    unitId={entry.unitId}
-                    gear={entry.gear}
-                    onGear={(groupId, choiceId) => setEntryGear(entry.id, groupId, choiceId)}
-                  />
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     {character ? (
                       <button
@@ -1336,23 +1654,17 @@ export function ListBuilder() {
                       return <p className="mt-2 text-xs text-muted">This squad already has an enhancement.</p>;
                     }
                     return (
-                      <label className="mt-2 flex w-fit max-w-full flex-col items-start text-xs text-muted">
-                        Enhancement
-                        <select
-                          aria-label={`Enhancement for ${entry.unit.name}`}
-                          value={entry.enhancementId ?? ""}
-                          onChange={(event) => setEnhancement(entry.id, event.target.value)}
-                          className="wargear-select mt-1 h-8 w-fit max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg"
-                        >
-                          <option value="">None</option>
-                          {choices.map((enhancement) => (
-                            <option key={enhancement.id} value={enhancement.id}>
-                              {enhancement.name} +{enhancement.points} pts
-                              {enhancement.once ? " · one per army" : enhancement.upgrade ? " · upgrade" : ""}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      <EnhancementPick
+                        unitId={entry.unitId}
+                        unitName={entry.unit.name}
+                        models={entry.models}
+                        gear={entry.gear}
+                        value={entry.enhancementId ?? ""}
+                        weapon={entry.enhancementWeapon}
+                        choices={choices}
+                        onChange={(enhancementId) => setEnhancement(entry.id, enhancementId)}
+                        onWeapon={(weaponId) => setEnhancementWeapon(entry.id, weaponId)}
+                      />
                     );
                   })()}
                 </li>
@@ -1367,14 +1679,10 @@ export function ListBuilder() {
         <DatasheetView
           unitId={sheet.unitId}
           unitName={unitById(sheet.unitId)?.name ?? "Datasheet"}
-          gear={sheet.entryId ? roster.entries.find((entry) => entry.id === sheet.entryId)?.gear : undefined}
-          enhancement={(() => {
-            const picked = sheet.entryId
-              ? roster.entries.find((entry) => entry.id === sheet.entryId)?.enhancementId
-              : undefined;
-            const rule = picked ? enhancementById(picked) : undefined;
-            return rule ? { name: rule.name, rule: rule.rule } : undefined;
-          })()}
+          models={roster.entries.find((entry) => entry.id === sheet.entryId)?.models}
+          gear={roster.entries.find((entry) => entry.id === sheet.entryId)?.gear}
+          enhancementId={sheet.entryId ? roster.entries.find((entry) => entry.id === sheet.entryId)?.enhancementId : undefined}
+          enhancementWeapon={sheet.entryId ? roster.entries.find((entry) => entry.id === sheet.entryId)?.enhancementWeapon : undefined}
           listOnly={Boolean(sheet.entryId)}
           onClose={() => setSheet(null)}
         />

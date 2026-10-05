@@ -191,13 +191,22 @@ html[data-theme="night"] {
   --color-danger: #e07a6a;
 }
 
-html[data-theme="amethyst"] {
-  --color-bg: #100c14;
-  --color-surface: #1a1422;
-  --color-raised: #241c2e;
-  --color-fg: #f3eaf8;
-  --color-muted: #b09cbd;
-  --color-gold: #c9a46a;
-  --color-line: #3a2e48;
-  --color-danger: #e07a8a;
+html[data-theme="monochrome"] {
+  --color-bg: #0e0e0e;
+  --color-surface: #171717;
+  --color-raised: #222222;
+  --color-fg: #f2f2f2;
+  --color-muted: #9a9a9a;
+  --color-gold: #d4d4d4;
+  --color-line: #333333;
+  --color-danger: #c8c8c8;
+}
+
+.text-modified {
+  color: #ff9ed4;
+}
+
+.mark-modified {
+  color: #ff9ed4;
+  border-color: #ff9ed4;
 }

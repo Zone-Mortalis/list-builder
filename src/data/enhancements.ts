@@ -7,10 +7,20 @@ export type Detachment = {
   name: string;
   dp: number;
   unique?: boolean;
+  flavor?: string;
   rule?: { name: string; text: string };
   dispositions: readonly string[];
   katah?: { name: string; effect: string };
   stratagems: Stratagem[];
+};
+
+export type WeaponMod = {
+  /** Which equipped weapons this can be placed on. */
+  scope: "ranged" | "melee";
+  attacks?: number;
+  strength?: number;
+  damage?: number;
+  tags?: string;
 };
 
 export type Enhancement = {
@@ -23,6 +33,10 @@ export type Enhancement = {
   upgrade?: boolean;
   /** Upgrade that can still only be taken once in the army. */
   once?: boolean;
+  /** Printed change to the bearer’s Wounds. */
+  wounds?: number;
+  /** The bearer chooses one equipped weapon in scope. */
+  weaponMod?: WeaponMod;
   targets: readonly string[];
 };
 
@@ -109,6 +123,7 @@ export const DETACHMENTS: Detachment[] = [
     dispositions: ["Take and Hold"],
     dp: 1,
     unique: true,
+    flavor: "Plays a more defensive game, focused on occupying objectives and whittling down the enemy as they’re forced to come to you.",
     rule: {
       name: "Gilded Guardians",
       text: "While a friendly Adeptus Custodes unit, excluding Monster and Vehicle units, is within range of an objective, ranged attacks that target it with Strength greater than its Toughness have −1 to wound.",
@@ -165,6 +180,7 @@ export const DETACHMENTS: Detachment[] = [
     dispositions: ["Purge the Foe"],
     dp: 1,
     unique: true,
+    flavor: "Charges forwards as fast as possible to brutalise their foes in close combat.",
     rule: {
       name: "Instruments of the Emperor’s Wrath",
       text: "Friendly Adeptus Custodes units can re-roll charge rolls.",
@@ -200,6 +216,7 @@ export const DETACHMENTS: Detachment[] = [
     dispositions: ["Priority Assets"],
     dp: 1,
     unique: true,
+    flavor: "Prioritise the mission, fight first, and ignore modifiers to hit and wound.",
     rule: { name: "Heralds of the Throne", text: "Friendly Adeptus Custodes units have Fights First." },
     katah: {
       name: "Conservai",
@@ -232,6 +249,7 @@ export const DETACHMENTS: Detachment[] = [
     dispositions: ["Priority Assets"],
     dp: 1,
     unique: true,
+    flavor: "Make your units more flexible and reliable, and ready a ka’tah mid-round too.",
     rule: {
       name: "Magna Imperator",
       text: "When a friendly Adeptus Custodes unit is selected to attack, it can re-roll one hit roll and one wound roll.",
@@ -417,6 +435,7 @@ export const DETACHMENTS: Detachment[] = [
     dispositions: ["Purge the Foe"],
     dp: 1,
     unique: true,
+    flavor: "Brawl in close combat and overwhelm your enemy.",
     rule: {
       name: "Wardens of the Dark Cells",
       text: "While a friendly Adeptus Custodes unit, excluding Monster and Vehicle units, is within range of an objective, melee attacks that target it with Strength greater than its Toughness have −1 to wound.",
@@ -452,6 +471,7 @@ export const DETACHMENTS: Detachment[] = [
     dispositions: ["Reconnaissance"],
     dp: 1,
     unique: true,
+    flavor: "Move even quicker than usual, and flow into and out of engagement like water.",
     rule: {
       name: "Talon Sortie",
       text: "When a friendly Adeptus Custodes unit Falls Back, that move does not stop it being eligible to charge.",
@@ -495,6 +515,7 @@ export const ENHANCEMENTS: Enhancement[] = [
     detachment: "guardians",
     points: 30,
     rule: "Adeptus Custodes model only. This model has +1 Wound. Once per battle, per army, when attacks are allocated to this model, it can have a 3+ invulnerable save.",
+    wounds: 1,
     targets: CUSTODES,
   },
   {
@@ -519,6 +540,7 @@ export const ENHANCEMENTS: Enhancement[] = [
     detachment: "aquilan",
     points: 10,
     rule: "Adeptus Custodes Infantry model only. Its ranged attacks have +1 Attack.",
+    weaponMod: { scope: "ranged", attacks: 1 },
     targets: INFANTRY_CHARACTERS,
   },
   {
@@ -559,6 +581,7 @@ export const ENHANCEMENTS: Enhancement[] = [
     detachment: "dread-host",
     points: 15,
     rule: "Adeptus Custodes model only. Its melee attacks have [Cleave 1].",
+    weaponMod: { scope: "melee", tags: "Cleave 1" },
     targets: CUSTODES,
   },
   {
@@ -567,6 +590,7 @@ export const ENHANCEMENTS: Enhancement[] = [
     detachment: "dread-host",
     points: 15,
     rule: "Adeptus Custodes model only. Its melee attacks have [Sustained Hits 1].",
+    weaponMod: { scope: "melee", tags: "Sustained Hits 1" },
     targets: CUSTODES,
   },
   {
@@ -591,6 +615,7 @@ export const ENHANCEMENTS: Enhancement[] = [
     detachment: "chosen",
     points: 15,
     rule: "Adeptus Custodes model only. Its melee attacks have [Devastating Wounds].",
+    weaponMod: { scope: "melee", tags: "Devastating Wounds" },
     targets: CUSTODES,
   },
   {
@@ -670,6 +695,7 @@ export const ENHANCEMENTS: Enhancement[] = [
     upgrade: true,
     once: true,
     rule: "Upgrade, one per army, for an Adeptus Custodes Dreadnought model only. Its melee attacks have +1 Attack, Strength, and Damage.",
+    weaponMod: { scope: "melee", attacks: 1, strength: 1, damage: 1 },
     targets: DREADS,
   },
   {

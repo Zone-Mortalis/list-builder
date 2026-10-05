@@ -5,7 +5,7 @@ export const THEMES = [
   { id: "auramite", name: "Auramite", swatch: "#d4b36a" },
   { id: "marble", name: "Marble", swatch: "#8a6a2f" },
   { id: "night", name: "Night", swatch: "#7eb0d6" },
-  { id: "amethyst", name: "Amethyst", swatch: "#c9a46a" },
+  { id: "monochrome", name: "Monochrome", swatch: "#d4d4d4" },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]["id"];
@@ -15,6 +15,7 @@ const MOTION_KEY = "ttt-motion";
 
 export function loadTheme(): ThemeId {
   const saved = localStorage.getItem(THEME_KEY);
+  if (saved === "amethyst") return "monochrome";
   return THEMES.some((theme) => theme.id === saved) ? (saved as ThemeId) : "auramite";
 }
 

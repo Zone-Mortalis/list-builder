@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import { bearerNames, detachmentById, enhancementsFor } from "@/data/enhancements";
+import { katahByName } from "@/data/rules";
 
 export function DetachmentSheet({ ids, onClose }: { ids: string[]; onClose: () => void }) {
   const detachments = ids.map((id) => detachmentById(id)).filter((item) => item != null);
@@ -47,7 +48,8 @@ export function DetachmentSheet({ ids, onClose }: { ids: string[]; onClose: () =
               <article key={detachment.id} className="flex flex-col gap-4">
                 {detachments.length > 1 ? <h3 className="font-display text-xl">{detachment.name}</h3> : null}
                 <p className="text-xs text-muted">
-                  {detachment.dp} DP{detachment.unique ? " · Shield Host" : ""}
+                  {detachment.dp} DP
+                  {detachment.unique ? ` · Shield Host${detachment.flavor ? ` — ${detachment.flavor}` : ""}` : ""}
                 </p>
                 <p className="text-sm">Force disposition: {detachment.dispositions.join(", ")}</p>
                 {detachment.rule ? (
@@ -61,7 +63,10 @@ export function DetachmentSheet({ ids, onClose }: { ids: string[]; onClose: () =
                 {detachment.katah ? (
                   <section>
                     <h3 className="text-xs tracking-wide text-gold uppercase">Favoured Ka’tah · {detachment.katah.name}</h3>
-                    <p className="mt-1 text-sm">{detachment.katah.effect}</p>
+                    {katahByName(detachment.katah.name) ? (
+                      <p className="mt-1 text-sm">{katahByName(detachment.katah.name)!.rule}</p>
+                    ) : null}
+                    <p className="mt-1 text-sm">Additional effect: {detachment.katah.effect}</p>
                   </section>
                 ) : null}
                 {enhancements.length > 0 ? (
