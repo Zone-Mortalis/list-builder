@@ -23,10 +23,13 @@ import {
   spentDp,
   type Enhancement,
 } from "@/data/enhancements";
+import { formatShareList } from "@/data/list-export";
 import {
   UNITS,
   attachSummary,
+  attachmentMates,
   canLead,
+  canSupport,
   canBeWarlord,
   armedWith,
   cleanGear,
@@ -37,8 +40,10 @@ import {
   gearLineCounted,
   gearPoints,
   isCharacter,
+  isSupport,
   ordinal,
   priceLine,
+  reconcileAttachments,
   retinueCounting,
   sizeOf,
   squadCost,
@@ -134,41 +139,51 @@ function bodyguardSheet(entryId: string | undefined, entries: readonly Entry[]) 
   return body ? { unitId: body.unitId, gear: body.gear } : undefined;
 }
 
-function partnerEntry(entry: Entry, entries: Entry[]): Entry | undefined {
-  if (entry.attachedTo) return entries.find((candidate) => candidate.id === entry.attachedTo);
-  return entries.find((candidate) => candidate.attachedTo === entry.id);
-}
-
 function arrange(entries: Entry[], warlordId?: string): Entry[] {
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const used = new Set<string>();
   const result: Entry[] = [];
 
-  const pushCharacter = (character: Entry) => {
-    if (used.has(character.id)) return;
-    result.push(character);
-    used.add(character.id);
-    const body = character.attachedTo ? byId.get(character.attachedTo) : undefined;
-    if (body && !used.has(body.id)) {
-      result.push(body);
-      used.add(body.id);
+  const pushGroup = (body: Entry) => {
+    if (used.has(body.id)) return;
+    const attached = entries.filter((entry) => entry.attachedTo === body.id);
+    const leader = attached.find((entry) => !isSupport(entry.unitId));
+    const support = attached.find((entry) => isSupport(entry.unitId));
+    if (leader && !used.has(leader.id)) {
+      result.push(leader);
+      used.add(leader.id);
     }
+    if (support && !used.has(support.id)) {
+      result.push(support);
+      used.add(support.id);
+    }
+    result.push(body);
+    used.add(body.id);
+  };
+
+  const pushEntry = (entry: Entry) => {
+    if (used.has(entry.id)) return;
+    if (entry.attachedTo) {
+      const body = byId.get(entry.attachedTo);
+      if (body) {
+        pushGroup(body);
+        return;
+      }
+    }
+    if (entries.some((other) => other.attachedTo === entry.id)) {
+      pushGroup(entry);
+      return;
+    }
+    result.push(entry);
+    used.add(entry.id);
   };
 
   const warlord = warlordId ? byId.get(warlordId) : undefined;
-  if (warlord && canBeWarlord(warlord.unitId)) {
-    if (isCharacter(warlord.unitId)) pushCharacter(warlord);
-    else {
-      result.push(warlord);
-      used.add(warlord.id);
-    }
-  }
+  if (warlord && canBeWarlord(warlord.unitId)) pushEntry(warlord);
   for (const entry of entries) {
-    if (isCharacter(entry.unitId)) pushCharacter(entry);
+    if (isCharacter(entry.unitId)) pushEntry(entry);
   }
-  for (const entry of entries) {
-    if (!used.has(entry.id)) result.push(entry);
-  }
+  for (const entry of entries) pushEntry(entry);
   return result;
 }
 
@@ -218,10 +233,7 @@ function settle(roster: Roster): Roster {
     keepIds.add(entry.id);
   }
   const kept = roster.entries.filter((entry) => keepIds.has(entry.id));
-  const ids = new Set(kept.map((entry) => entry.id));
-  const entries = kept.map((entry) =>
-    entry.attachedTo && !ids.has(entry.attachedTo) ? { ...entry, attachedTo: undefined } : entry,
-  );
+  const entries = reconcileAttachments(kept, roster.detachments);
   const eligible = entries.filter((entry) => canBeWarlord(entry.unitId));
   const warlordId = eligible.some((entry) => entry.id === roster.warlordId)
     ? roster.warlordId
@@ -261,7 +273,7 @@ function choicesFor(entry: Entry, roster: Roster): Enhancement[] {
     if (!roster.detachments.includes(enhancement.detachment)) return false;
     if (!enhancement.targets.includes(entry.unitId)) return false;
     if (entry.enhancementId === enhancement.id) return true;
-    if (partnerEntry(entry, roster.entries)?.enhancementId) return false;
+    if (attachmentMates(entry, roster.entries).some((mate) => mate.enhancementId)) return false;
     if (!repeatable(enhancement) && roster.entries.some((other) => other.enhancementId === enhancement.id)) return false;
     if (!slots.has(enhancement.id) && slots.size >= MAX_ENHANCEMENTS) return false;
     return true;
@@ -310,30 +322,17 @@ function rosterFrom(parsed: Partial<Roster> | null): Roster {
   const detachments = legalDetachments(
     Array.isArray(parsed.detachments) ? parsed.detachments.filter((id): id is string => typeof id === "string") : [],
   );
-  const ids = new Set(entries.map((entry) => entry.id));
-  for (const entry of entries) {
-    if (!entry.attachedTo || !ids.has(entry.attachedTo)) {
-      delete entry.attachedTo;
-      continue;
-    }
-    const body = entries.find((candidate) => candidate.id === entry.attachedTo);
-    if (!body || !canLead(entry.unitId, body.unitId, detachments)) delete entry.attachedTo;
-  }
-  const taken = new Set<string>();
-  for (const entry of entries) {
-    if (!entry.attachedTo) continue;
-    if (taken.has(entry.attachedTo)) delete entry.attachedTo;
-    else taken.add(entry.attachedTo);
-  }
+  const attached = reconcileAttachments(entries, detachments);
   const seenEnhancements = new Set<string>();
-  for (const entry of entries) {
+  const enhanced = new Set<string>();
+  for (const entry of attached) {
     const enhancement = entry.enhancementId ? enhancementById(entry.enhancementId) : undefined;
-    const partner = partnerEntry(entry, entries);
+    const partnerHas = attachmentMates(entry, attached).some((mate) => enhanced.has(mate.id));
     const allowed =
       enhancement &&
       detachments.includes(enhancement.detachment) &&
       enhancement.targets.includes(entry.unitId) &&
-      !partner?.enhancementId &&
+      !partnerHas &&
       (repeatable(enhancement) || !seenEnhancements.has(enhancement.id)) &&
       (seenEnhancements.has(enhancement.id) || seenEnhancements.size < MAX_ENHANCEMENTS);
     if (!enhancement || !allowed) {
@@ -348,6 +347,7 @@ function rosterFrom(parsed: Partial<Roster> | null): Roster {
       delete entry.enhancementWeapon;
     }
     seenEnhancements.add(enhancement.id);
+    enhanced.add(entry.id);
   }
   const stored = parsed as Partial<Roster> & { mainDispositions?: Record<string, unknown> };
   const legacyMain = stored.mainDispositions
@@ -361,7 +361,7 @@ function rosterFrom(parsed: Partial<Roster> | null): Roster {
     mainDisposition: typeof parsed.mainDisposition === "string" ? parsed.mainDisposition : legacyMain,
     warlordId,
     building: parsed.building === true,
-    entries,
+    entries: attached,
   });
 }
 
@@ -842,27 +842,38 @@ export function ListBuilder() {
     );
   }
 
-  function attach(leaderId: string, bodyId: string) {
-    setRoster((current) =>
-      settle({
+  function attach(characterId: string, bodyId: string) {
+    setRoster((current) => {
+      const character = current.entries.find((entry) => entry.id === characterId);
+      if (!character) return current;
+      const support = isSupport(character.unitId);
+      return settle({
         ...current,
         entries: current.entries.map((entry) => {
-          if (entry.id === leaderId) {
-            const body = current.entries.find((candidate) => candidate.id === bodyId);
-            const drop = Boolean(bodyId && body?.enhancementId && entry.enhancementId);
+          if (entry.id === characterId) {
+            const shared = bodyId
+              ? current.entries.some(
+                  (other) =>
+                    other.id !== characterId &&
+                    other.enhancementId &&
+                    (other.id === bodyId || other.attachedTo === bodyId),
+                )
+              : false;
+            const drop = Boolean(shared && entry.enhancementId);
             return {
               ...entry,
               attachedTo: bodyId || undefined,
               enhancementId: drop ? undefined : entry.enhancementId,
+              enhancementWeapon: drop ? undefined : entry.enhancementWeapon,
             };
           }
-          if (bodyId && entry.id !== leaderId && entry.attachedTo === bodyId) {
+          if (bodyId && entry.id !== characterId && entry.attachedTo === bodyId && isSupport(entry.unitId) === support) {
             return { ...entry, attachedTo: undefined };
           }
           return entry;
         }),
-      }),
-    );
+      });
+    });
   }
 
   function setDraft(unitId: string, groupId: string, choiceId: string) {
@@ -950,37 +961,28 @@ export function ListBuilder() {
       .map((id) => detachmentById(id)?.name)
       .filter(Boolean)
       .join(", ");
-    const used = new Set<string>();
-    const blocks: string[] = [];
-
-    const line = (entry: (typeof priced)[number], nested: boolean) => {
-      const notes: string[] = [];
-      if (entry.id === roster.warlordId) notes.push("Warlord");
-      const enhancement = entry.enhancementId ? enhancementById(entry.enhancementId) : undefined;
-      if (enhancement) notes.push(enhancement.name);
-      const detail = notes.length ? ` (${notes.join(", ")})` : "";
-      const kit = gearLine(entry.unitId, entry.gear, false);
-      const prefix = nested ? "- " : "";
-      return `${prefix}${entry.unit.name} x${entry.models}${detail}${kit ? ` — ${kit}` : ""}`;
-    };
-
-    for (const entry of priced) {
-      if (used.has(entry.id)) continue;
-      const host = entry.attachedTo ? priced.find((candidate) => candidate.id === entry.attachedTo) : undefined;
-      if (host) {
-        used.add(entry.id);
-        used.add(host.id);
-        blocks.push(`${line(entry, false)}\n${line(host, true)}`);
-        continue;
-      }
-      if (priced.some((leader) => leader.attachedTo === entry.id)) continue;
-      used.add(entry.id);
-      blocks.push(line(entry, false));
-    }
-
-    return [roster.name, `${total} pts / ${roster.limit} pts`, detachmentNames, "", blocks.join("\n\n")]
-      .filter((line, index) => index !== 2 || line)
-      .join("\n");
+    return formatShareList({
+      name: roster.name,
+      total,
+      limit: roster.limit,
+      detachmentNames,
+      entries: priced.map((entry) => {
+        const enhancement = entry.enhancementId ? enhancementById(entry.enhancementId) : undefined;
+        return {
+          id: entry.id,
+          unitId: entry.unitId,
+          name: entry.unit.name,
+          models: entry.models,
+          cost: entry.cost,
+          gear: entry.gear,
+          attachedTo: entry.attachedTo,
+          warlord: entry.id === roster.warlordId,
+          enhancement: enhancement
+            ? { id: enhancement.id, name: enhancement.name, upgrade: enhancement.upgrade }
+            : undefined,
+        };
+      }),
+    });
   }
 
   async function copyList() {
@@ -1575,13 +1577,26 @@ export function ListBuilder() {
                 <li className="border-b border-line py-3 text-sm text-danger">Choose a warlord.</li>
               ) : null}
               {priced.map((entry) => {
-                const targets = priced.filter(
-                  (candidate) =>
-                    candidate.id !== entry.id &&
-                    canLead(entry.unitId, candidate.unitId, roster.detachments) &&
-                    (!priced.some((leader) => leader.attachedTo === candidate.id) || entry.attachedTo === candidate.id),
-                );
-                const leader = priced.find((candidate) => candidate.attachedTo === entry.id);
+                const supportCharacter = isSupport(entry.unitId);
+                const targets = priced.filter((candidate) => {
+                  if (candidate.id === entry.id) return false;
+                  if (supportCharacter) {
+                    const hasLeader = priced.some(
+                      (leader) => !isSupport(leader.unitId) && leader.attachedTo === candidate.id,
+                    );
+                    const supportTaken = priced.some(
+                      (other) => other.id !== entry.id && isSupport(other.unitId) && other.attachedTo === candidate.id,
+                    );
+                    return canSupport(entry.unitId, candidate.unitId) && hasLeader && !supportTaken;
+                  }
+                  const leaderTaken = priced.some(
+                    (leader) => leader.id !== entry.id && !isSupport(leader.unitId) && leader.attachedTo === candidate.id,
+                  );
+                  return canLead(entry.unitId, candidate.unitId, roster.detachments) && !leaderTaken;
+                });
+                const leader = priced.find((candidate) => candidate.attachedTo === entry.id && !isSupport(candidate.unitId));
+                const support = priced.find((candidate) => candidate.attachedTo === entry.id && isSupport(candidate.unitId));
+                const indent = Boolean(leader || support || (supportCharacter && entry.attachedTo));
                 const character = canBeWarlord(entry.unitId);
                 const warlord = entry.id === roster.warlordId;
                 const kit = gearLineCounted(entry.unitId, entry.gear, entry.models);
@@ -1589,8 +1604,9 @@ export function ListBuilder() {
                   wargear: gearPoints(entry.unitId, entry.gear, entry.models),
                   enhancement: entry.enhancementId ? (enhancementById(entry.enhancementId)?.points ?? 0) : 0,
                 });
+                const role = entry.attachedTo ? (supportCharacter ? "Support" : "Leader") : leader || support ? "Bodyguard" : "";
                 return (
-                <li key={entry.id} className={`motion-surface border-b border-line py-3 last:border-b-0 ${leader ? "border-l-2 border-l-gold pl-4" : ""}`}>
+                <li key={entry.id} className={`motion-surface border-b border-line py-3 last:border-b-0 ${indent ? "border-l-2 border-l-gold pl-4" : ""}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium break-words">
@@ -1601,7 +1617,9 @@ export function ListBuilder() {
                         {line}
                         {entry.unit.maxCopies === 1 ? " · one only" : ""}
                         {warlord ? " · Warlord" : ""}
+                        {role ? ` · ${role}` : ""}
                         {leader ? ` · led by ${leader.unit.name}` : ""}
+                        {support ? ` · supported by ${support.unit.name}` : ""}
                         {entry.enhancementId ? ` · ${enhancementById(entry.enhancementId)?.name ?? ""}` : ""}
                       </p>
                     </div>
@@ -1642,11 +1660,14 @@ export function ListBuilder() {
                       <Trash2 className="size-4" />
                     </button>
                   </div>
+                  {supportCharacter && targets.length === 0 && !entry.attachedTo ? (
+                    <p className="mt-2 text-xs text-muted">Supports a unit that already has a Leader.</p>
+                  ) : null}
                   {attachSummary(entry.unitId) && (targets.length > 0 || entry.attachedTo) ? (
                     <label className="mt-2 flex w-fit max-w-full flex-col items-start text-xs text-muted">
-                      Attached to
+                      {supportCharacter ? "Supporting" : "Attached to"}
                       <select
-                        aria-label={`Attach ${entry.unit.name}`}
+                        aria-label={supportCharacter ? `Support with ${entry.unit.name}` : `Attach ${entry.unit.name}`}
                         value={entry.attachedTo ?? ""}
                         onChange={(event) => attach(entry.id, event.target.value)}
                         className="wargear-select mt-1 h-8 w-fit max-w-full rounded-lg border border-line bg-bg px-2 text-xs text-fg"
@@ -1663,7 +1684,7 @@ export function ListBuilder() {
                   ) : null}
                   {(() => {
                     const choices = choicesFor(entry, roster);
-                    const partnerHas = Boolean(partnerEntry(entry, roster.entries)?.enhancementId);
+                    const partnerHas = attachmentMates(entry, roster.entries).some((mate) => mate.enhancementId);
                     const couldTake = ENHANCEMENTS.some(
                       (enhancement) =>
                         roster.detachments.includes(enhancement.detachment) && enhancement.targets.includes(entry.unitId),

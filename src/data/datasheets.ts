@@ -1718,7 +1718,7 @@ export const KEYWORDS: Record<string, { keywords: string; faction: string }> = {
   vindicare: { keywords: "Infantry, Character, Epic Hero, Smoke, Imperium, Vindicare Assassin, Officio Assassinorum", faction: "Agents of the Imperium" },
   artemis: { keywords: "Epic Hero, Character, Infantry, Grenades, Imperium, Deathwatch, Watch Captain Artemis, Ordo Xenos", faction: "Agents of the Imperium" },
   inquisitor: { keywords: "Infantry, Character, Grenades, Imperium, Inquisitor", faction: "Agents of the Imperium" },
-  "ministorum-priest": { keywords: "Infantry, Character, Imperium, Ordo Hereticus, Ministorum Priest", faction: "Agents of the Imperium" },
+  "ministorum-priest": { keywords: "Infantry, Character, Imperium, Support, Ordo Hereticus, Ministorum Priest", faction: "Agents of the Imperium" },
   navigator: { keywords: "Infantry, Character, Psyker, Imperium, Voidfarers, Navigator", faction: "Agents of the Imperium" },
   "rogue-trader": { keywords: "Infantry, Grenades, Imperium, Voidfarers, Rogue Trader Entourage. Rogue Trader: Character", faction: "Agents of the Imperium" },
   "watch-master": { keywords: "Infantry, Character, Grenades, Imperium, Ordo Xenos, Deathwatch, Watch Master", faction: "Agents of the Imperium" },
