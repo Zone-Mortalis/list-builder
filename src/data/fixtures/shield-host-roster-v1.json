@@ -1,0 +1,25 @@
+{
+  "name": "Old Roster",
+  "limit": 2000,
+  "detachments": ["vigil"],
+  "mainDisposition": "Disruption",
+  "warlordId": "centura",
+  "building": true,
+  "entries": [
+    {
+      "id": "centura",
+      "unitId": "knight-centura",
+      "models": 1,
+      "addedAt": 1,
+      "attachedTo": "squad",
+      "enhancementId": "huntress",
+      "gear": { "weapon": "flamer" }
+    },
+    {
+      "id": "squad",
+      "unitId": "vigilators",
+      "models": 5,
+      "addedAt": 2
+    }
+  ]
+}

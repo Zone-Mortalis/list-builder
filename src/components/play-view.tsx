@@ -15,6 +15,7 @@ import {
   type PhaseId,
   type RosterUnit,
 } from "@/data/stratagems";
+import { isSupport } from "@/data/units";
 import { DatasheetView } from "@/components/datasheet-view";
 
 export type PlayEntry = {
@@ -49,26 +50,29 @@ function bodyguardFor(entry: PlayEntry, entries: readonly PlayEntry[]) {
   return body ? { unitId: body.unitId, gear: body.gear } : undefined;
 }
 
+function companionsOf(bodyId: string, entries: readonly PlayEntry[]): PlayEntry[] {
+  return entries
+    .filter((entry) => entry.attachedTo === bodyId)
+    .sort((left, right) => Number(isSupport(left.unitId)) - Number(isSupport(right.unitId)));
+}
+
 function tableUnits(entries: PlayEntry[]): RosterUnit[] {
-  const leaders = new Map<string, PlayEntry>();
-  for (const entry of entries) {
-    if (entry.attachedTo) leaders.set(entry.attachedTo, entry);
-  }
-  const attached = new Set([...leaders.values()].map((leader) => leader.id));
+  const attached = new Set(entries.flatMap((entry) => (entry.attachedTo ? [entry.id] : [])));
   return entries
     .filter((entry) => !attached.has(entry.id))
     .map((entry) => {
-      const leader = leaders.get(entry.id);
-      const unitIds = leader ? [leader.unitId, entry.unitId] : [entry.unitId];
-      const label = leader
-        ? `${leader.name}${leader.warlord ? " (Warlord)" : ""} — ${entry.name}${entry.models > 1 ? ` x${entry.models}` : ""}`
+      const companions = companionsOf(entry.id, entries);
+      const unitIds = [...companions.map((companion) => companion.unitId), entry.unitId];
+      const names = companions.map((companion) => `${companion.name}${companion.warlord ? " (Warlord)" : ""}`);
+      const label = companions.length
+        ? `${names.join(" & ")} — ${entry.name}${entry.models > 1 ? ` x${entry.models}` : ""}`
         : `${entry.name}${entry.models > 1 ? ` x${entry.models}` : ""}${entry.warlord ? " (Warlord)" : ""}`;
       return {
         key: entry.id,
         label,
         keywords: keywordsFor(unitIds),
         unitIds,
-        models: entry.models + (leader ? 1 : 0),
+        models: entry.models + companions.reduce((sum, companion) => sum + companion.models, 0),
       };
     });
 }
