@@ -237,7 +237,7 @@ export const DATASHEETS: Record<string, Datasheet> = {
     stats: { m: '7"', t: "8", sv: "2+", w: "9", ld: "5+", oc: "2", inv: "4+" },
     ranged: [
       gun("Balistus grenade launcher", "Assault, Blast 1", '18"', "3", "2+", "5", "−1", "1"),
-      gun("Castellan axe", "Assault, Rapid Fire 2", '24"', "2", "2+", "5", "−1", "1"),
+      gun("Castellan axe", "Assault, Rapid Fire 2", '24"', "2", "2+", "5", "−1", "2"),
       gun("Guardian spear", "Assault, Rapid Fire 2", '24"', "2", "2+", "5", "−1", "2"),
     ],
     melee: [
