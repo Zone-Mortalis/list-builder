@@ -127,6 +127,13 @@ function nextCost(unit: Unit, models: number, entries: Entry[], detachments: rea
   return squadCost(unit, models, ofUnit);
 }
 
+function bodyguardSheet(entryId: string | undefined, entries: readonly Entry[]) {
+  const entry = entryId ? entries.find((candidate) => candidate.id === entryId) : undefined;
+  if (!entry?.attachedTo) return undefined;
+  const body = entries.find((candidate) => candidate.id === entry.attachedTo);
+  return body ? { unitId: body.unitId, gear: body.gear } : undefined;
+}
+
 function partnerEntry(entry: Entry, entries: Entry[]): Entry | undefined {
   if (entry.attachedTo) return entries.find((candidate) => candidate.id === entry.attachedTo);
   return entries.find((candidate) => candidate.attachedTo === entry.id);
@@ -1694,6 +1701,7 @@ export function ListBuilder() {
           gear={roster.entries.find((entry) => entry.id === sheet.entryId)?.gear}
           enhancementId={sheet.entryId ? roster.entries.find((entry) => entry.id === sheet.entryId)?.enhancementId : undefined}
           enhancementWeapon={sheet.entryId ? roster.entries.find((entry) => entry.id === sheet.entryId)?.enhancementWeapon : undefined}
+          bodyguard={bodyguardSheet(sheet.entryId, roster.entries)}
           listOnly={Boolean(sheet.entryId)}
           onClose={() => setSheet(null)}
         />

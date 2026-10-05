@@ -43,6 +43,12 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "stratagems", label: "Stratagems" },
 ];
 
+function bodyguardFor(entry: PlayEntry, entries: readonly PlayEntry[]) {
+  if (!entry.attachedTo) return undefined;
+  const body = entries.find((candidate) => candidate.id === entry.attachedTo);
+  return body ? { unitId: body.unitId, gear: body.gear } : undefined;
+}
+
 function tableUnits(entries: PlayEntry[]): RosterUnit[] {
   const leaders = new Map<string, PlayEntry>();
   for (const entry of entries) {
@@ -399,6 +405,7 @@ export function PlayView({
           gear={openEntry.gear}
           enhancementId={openEntry.enhancementId}
           enhancementWeapon={openEntry.enhancementWeapon}
+          bodyguard={bodyguardFor(openEntry, entries)}
           listOnly
           onClose={() => setSheetEntry(null)}
         />

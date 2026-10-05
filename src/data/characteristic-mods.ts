@@ -25,10 +25,18 @@ export type WeaponAffect = {
 export type Affects = {
   unit?: {
     stats: readonly UnitStat[];
-    /** Bearer-only changes stay on the first profile. Unit-wide changes mark every profile line. */
+    /**
+     * Bearer-only changes stay on the first profile.
+     * Unit-wide changes (`all`) mark every profile line and, while a leader is
+     * attached, also change that leader's matching characteristics.
+     */
     profiles?: "primary" | "all";
     /** Invulnerable save the rule gives the bearer, when that line is not already computed elsewhere. */
     inv?: string;
+    /** Added to Objective Control for every model this change covers. */
+    oc?: number;
+    /** Leadership improved by this many steps (a 7+ becomes a 6+). */
+    leadership?: number;
   };
   unitKeywords?: readonly string[];
   weapons?: readonly WeaponAffect[];
@@ -116,17 +124,17 @@ const WARGEAR_AFFECTS: readonly WargearRule[] = [
   {
     id: "vexilla",
     when: (_unitId, gear) => vexillaTaken(gear),
-    affects: { unit: { stats: ["oc"], profiles: "all" } },
+    affects: { unit: { stats: ["oc"], profiles: "all", oc: 1 } },
   },
   {
     id: "ancients-banner",
     when: (_unitId, gear) => bannerTaken(gear),
-    affects: { unit: { stats: ["oc"], profiles: "all" } },
+    affects: { unit: { stats: ["oc"], profiles: "all", oc: 1 } },
   },
   {
     id: "simulacrum",
     when: (unitId, gear) => simulacrumTaken(unitId, gear),
-    affects: { unit: { stats: ["ld"], profiles: "all" } },
+    affects: { unit: { stats: ["ld"], profiles: "all", leadership: 1 } },
   },
   {
     id: "auspex",
@@ -227,6 +235,43 @@ export function invulnFromAffects(affects: readonly Affects[]): string | undefin
     if (item.unit?.stats.includes("inv") && item.unit.inv) return item.unit.inv;
   }
   return undefined;
+}
+
+export type BodyguardSheet = {
+  unitId: string;
+  gear?: Record<string, string>;
+};
+
+/** Printed Objective Control and Leadership steps a wargear change adds. */
+export function characteristicDelta(
+  affects: readonly Affects[],
+  profiles: "all" | "any",
+): { oc: number; leadership: number } {
+  let oc = 0;
+  let leadership = 0;
+  for (const item of affects) {
+    const unit = item.unit;
+    if (!unit) continue;
+    if (profiles === "all" && unit.profiles !== "all") continue;
+    oc += unit.oc ?? 0;
+    leadership += unit.leadership ?? 0;
+  }
+  return { oc, leadership };
+}
+
+/**
+ * Unit-wide characteristic changes from a bodyguard's selected wargear.
+ * Weapon mods and bearer-only stats (a shield's invulnerable save, a scanner's
+ * Ignores Cover) stay on the squad.
+ */
+export function inheritedUnitAffects(bodyguard: BodyguardSheet | undefined): Affects[] {
+  if (!bodyguard) return [];
+  const inherited: Affects[] = [];
+  for (const item of wargearAffects(bodyguard.unitId, bodyguard.gear)) {
+    if (item.unit?.profiles !== "all") continue;
+    inherited.push({ unit: item.unit });
+  }
+  return inherited;
 }
 
 /** Keywords a selected option adds to every equipped weapon in that scope. */

@@ -238,6 +238,154 @@ describe("characteristic highlighting", () => {
     assert.deepEqual(statsOf(aquila, "Gravis Veteran"), []);
   });
 
+  it("gives an attached leader the squad Vexilla's +1 OC and highlights only that", () => {
+    const bodyguard = { unitId: "custodian-guard", gear: { vexilla: "vexilla" } };
+    const sheet = playSheet({ unitId: "shield-captain", gear: { weapon: "spear" }, bodyguard });
+    assert.equal(sheet.stats.oc, "3");
+    assert.equal(sheet.stats.ld, "5+");
+    assert.equal(sheet.stats.w, "8");
+    const spear = sheet.ranged.find((weapon) => weapon.name === "Guardian spear");
+    const melee = sheet.melee.find((weapon) => weapon.name === "Guardian spear");
+    assert.equal(spear.a, "2");
+    assert.equal(melee.a, "8");
+    assert.equal(sheet.melee.some((weapon) => weapon.name === "Castellan axe"), false);
+    const marks = characteristicMarks({ unitId: "shield-captain", gear: { weapon: "spear" }, bodyguard });
+    assert.deepEqual(statsOf(marks), ["oc"]);
+    assert.equal(marks.weapons.size, 0);
+    assert.equal(marks.unitKeywords.size, 0);
+
+    const allarus = playSheet({
+      unitId: "shield-captain-allarus",
+      bodyguard: { unitId: "allarus", gear: { weapon: "spear", vexilla: "vexilla" } },
+    });
+    assert.equal(allarus.stats.oc, "3");
+    assert.equal(allarus.melee.find((weapon) => weapon.name === "Guardian spear").a, "8");
+    assert.deepEqual(
+      statsOf(
+        characteristicMarks({
+          unitId: "shield-captain-allarus",
+          bodyguard: { unitId: "allarus", gear: { weapon: "spear", vexilla: "vexilla" } },
+        }),
+      ),
+      ["oc"],
+    );
+  });
+
+  it("clears the inherited OC when the Vexilla is removed or the leader detaches", () => {
+    const removed = playSheet({
+      unitId: "shield-captain",
+      bodyguard: { unitId: "custodian-guard", gear: {} },
+    });
+    assert.equal(removed.stats.oc, "2");
+    assert.deepEqual(
+      statsOf(
+        characteristicMarks({
+          unitId: "shield-captain",
+          bodyguard: { unitId: "custodian-guard", gear: {} },
+        }),
+      ),
+      [],
+    );
+    const detached = playSheet({ unitId: "shield-captain" });
+    assert.equal(detached.stats.oc, "2");
+    assert.deepEqual(statsOf(characteristicMarks({ unitId: "shield-captain" })), []);
+    assert.equal(
+      playSheet({ unitId: "custodian-guard", models: 4, gear: { vexilla: "vexilla" } }).stats.oc,
+      "4",
+    );
+  });
+
+  it("does not copy squad weapon mods or bearer-only saves onto the attached leader", () => {
+    const scanner = playSheet({
+      unitId: "inquisitor",
+      gear: { gifts: "wardings" },
+      bodyguard: { unitId: "exaction", gear: { scanner: "scanner" } },
+    });
+    const pistol = scanner.ranged.find((weapon) => weapon.name === "Bolt pistol");
+    assert.equal(pistol.tags, "Pistol");
+    assert.equal(scanner.stats.oc, "1");
+    const scannerMarks = characteristicMarks({
+      unitId: "inquisitor",
+      gear: { gifts: "wardings" },
+      bodyguard: { unitId: "exaction", gear: { scanner: "scanner" } },
+    });
+    assert.equal(scannerMarks.weapons.size, 0);
+    assert.deepEqual(statsOf(scannerMarks), []);
+    assert.equal(scannerMarks.unitKeywords.size, 0);
+
+    const watch = playSheet({
+      unitId: "watch-master",
+      bodyguard: { unitId: "deathwatch-kt", gear: { sergeant: "shield-bolt" } },
+    });
+    assert.equal(watch.stats.inv, "4+");
+    assert.equal(watch.melee.find((weapon) => weapon.name === "Vigil spear").a, "6");
+    assert.deepEqual(
+      statsOf(
+        characteristicMarks({
+          unitId: "watch-master",
+          bodyguard: { unitId: "deathwatch-kt", gear: { sergeant: "shield-bolt" } },
+        }),
+      ),
+      [],
+    );
+  });
+
+  it("improves an attached leader's Leadership for a simulacrum and OC for an Ancient's banner", () => {
+    const leading = playSheet({
+      unitId: "inquisitor",
+      bodyguard: { unitId: "sisters-squad", gear: { simulacrum: "sim" } },
+    });
+    assert.equal(leading.stats.ld, "5+");
+    assert.equal(leading.stats.oc, "1");
+    assert.deepEqual(
+      statsOf(
+        characteristicMarks({
+          unitId: "inquisitor",
+          bodyguard: { unitId: "sisters-squad", gear: { simulacrum: "sim" } },
+        }),
+      ),
+      ["ld"],
+    );
+    assert.equal(
+      playSheet({
+        unitId: "inquisitor",
+        bodyguard: { unitId: "sisters-squad", gear: { simulacrum: "none" } },
+      }).stats.ld,
+      "6+",
+    );
+    const banner = playSheet({
+      unitId: "shield-captain",
+      bodyguard: { unitId: "grey-knights-terminators", gear: { banner: "1" } },
+    });
+    assert.equal(banner.stats.oc, "3");
+    assert.deepEqual(
+      statsOf(
+        characteristicMarks({
+          unitId: "shield-captain",
+          bodyguard: { unitId: "grey-knights-terminators", gear: { banner: "1" } },
+        }),
+      ),
+      ["oc"],
+    );
+    assert.equal(banner.melee.find((weapon) => weapon.name === "Guardian spear").a, "8");
+  });
+
+  it("keeps a leader's own enhancement highlight beside an inherited squad characteristic", () => {
+    const bodyguard = { unitId: "wardens", gear: { weapon: "spear", vexilla: "vexilla" } };
+    const sheet = playSheet({
+      unitId: "shield-captain",
+      enhancementId: "eagles-eye",
+      bodyguard,
+    });
+    assert.equal(sheet.stats.w, "9");
+    assert.equal(sheet.stats.oc, "3");
+    assert.deepEqual(
+      statsOf(characteristicMarks({ unitId: "shield-captain", enhancementId: "eagles-eye", bodyguard })),
+      ["oc", "w"],
+    );
+    assert.equal(sheet.melee.find((weapon) => weapon.name === "Guardian spear").a, "8");
+  });
+
   it("does not highlight roll modifiers or abilities that are not profile characteristics", () => {
     for (const enhancementId of [
       "bane",
