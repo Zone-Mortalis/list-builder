@@ -97,6 +97,80 @@ select.weapon-select {
   width: fit-content;
   max-width: 100%;
   field-sizing: content;
+  height: 2rem;
+  box-sizing: border-box;
+  padding: 0 1.75rem 0 0.5rem;
+  line-height: calc(2rem - 2px);
+  appearance: none;
+  -webkit-appearance: none;
+  color-scheme: dark;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 0.875rem 0.875rem;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-duration) var(--motion-ease),
+    background-color var(--motion-duration) var(--motion-ease),
+    color var(--motion-duration) var(--motion-ease),
+    outline-color var(--motion-duration) var(--motion-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  select.wargear-select:hover:not(:disabled),
+  select.weapon-select:hover:not(:disabled),
+  div.relative:has(> select[aria-label="Weapon"]:hover) > span {
+    border-color: color-mix(in srgb, var(--color-gold) 55%, var(--color-line));
+  }
+}
+
+select.wargear-select:focus-visible,
+select.weapon-select:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+select.wargear-select:disabled,
+select.weapon-select:disabled {
+  color: var(--color-muted);
+  opacity: 0.55;
+  cursor: default;
+}
+
+select.wargear-select option,
+select.wargear-select optgroup,
+select.weapon-select option,
+select.weapon-select optgroup,
+select[aria-label="Weapon"] option,
+select[aria-label="Weapon"] optgroup {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+}
+
+select[aria-label="Weapon"] {
+  color-scheme: dark;
+}
+
+div.relative:has(> select[aria-label="Weapon"]) > span {
+  border-color: var(--color-line);
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+  transition:
+    border-color var(--motion-duration) var(--motion-ease),
+    background-color var(--motion-duration) var(--motion-ease),
+    color var(--motion-duration) var(--motion-ease),
+    outline-color var(--motion-duration) var(--motion-ease);
+}
+
+div.relative:has(> select[aria-label="Weapon"]:focus-visible) > span {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
 }
 
 .page-enter {
@@ -338,6 +412,10 @@ html[data-motion="on"] *::after {
   scroll-behavior: auto !important;
 }
 
+html {
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23d4b36a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+}
+
 html[data-theme="marble"] {
   --color-bg: #f4efe6;
   --color-surface: #fffaf3;
@@ -347,6 +425,13 @@ html[data-theme="marble"] {
   --color-gold: #8a6a2f;
   --color-line: #d9d0c3;
   --color-danger: #a33b2b;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%238a6a2f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+}
+
+html[data-theme="marble"] select.wargear-select,
+html[data-theme="marble"] select.weapon-select,
+html[data-theme="marble"] select[aria-label="Weapon"] {
+  color-scheme: light;
 }
 
 html[data-theme="night"] {
@@ -358,6 +443,7 @@ html[data-theme="night"] {
   --color-gold: #7eb0d6;
   --color-line: #2c3848;
   --color-danger: #e07a6a;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%237eb0d6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
 }
 
 html[data-theme="monochrome"] {
@@ -369,6 +455,7 @@ html[data-theme="monochrome"] {
   --color-gold: #d4d4d4;
   --color-line: #333333;
   --color-danger: #c8c8c8;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23d4d4d4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
 }
 
 .text-modified {
@@ -385,4 +472,19 @@ html[data-theme="monochrome"] {
   transition:
     color var(--motion-duration) var(--motion-ease),
     border-color var(--motion-duration) var(--motion-ease);
+}
+
+dd,
+[role="dialog"] li > p,
+[role="dialog"] li span,
+[role="dialog"] li button {
+  transition:
+    color var(--motion-duration) var(--motion-ease),
+    background-color var(--motion-duration) var(--motion-ease),
+    border-color var(--motion-duration) var(--motion-ease),
+    box-shadow var(--motion-duration) var(--motion-ease),
+    opacity var(--motion-duration) var(--motion-ease),
+    filter var(--motion-duration) var(--motion-ease),
+    transform var(--motion-duration) var(--motion-ease),
+    outline-color var(--motion-duration) var(--motion-ease);
 }
