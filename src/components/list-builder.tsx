@@ -1698,7 +1698,7 @@ export function ListBuilder() {
           onClose={() => setSheet(null)}
         />
       ) : null}
-      {rulesIds ? <DetachmentSheet ids={rulesIds} onClose={() => setRulesIds(null)} /> : null}
+      {rulesIds ? <DetachmentSheet ids={rulesIds} armyRules onClose={() => setRulesIds(null)} /> : null}
       {coreOpen ? <CoreRules onClose={() => setCoreOpen(false)} /> : null}
       {settings}
     </main>
