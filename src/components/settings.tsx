@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { X } from "lucide-react";
+import { SheetFrame } from "@/components/motion";
 
 export const THEMES = [
   { id: "auramite", name: "Auramite", swatch: "#d4b36a" },
@@ -48,34 +48,16 @@ export function Settings({
   onMotion: (reduce: boolean) => void;
   onClose: () => void;
 }) {
-  useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
-
   return (
-    <div className="sheet-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Settings"
-        className="sheet-panel max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-line bg-surface px-4 py-4"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <SheetFrame label="Settings" onClose={onClose}>
+      {(close) => (
+        <>
         <div className="flex items-start justify-between gap-3">
           <h2 className="font-display text-2xl">Settings</h2>
           <button
             type="button"
             aria-label="Close settings"
-            onClick={onClose}
+            onClick={close}
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted"
           >
             <X className="size-5" />
@@ -92,10 +74,15 @@ export function Settings({
           >
             <span>
               Reduce motion
-              <span className="mt-0.5 block text-xs text-muted">Turn this off to keep button press animations.</span>
+              <span className="mt-0.5 block text-xs text-muted">Turn this off to keep interface transitions.</span>
             </span>
-            <span className={`shrink-0 text-xs ${reduceMotion ? "text-gold" : "text-muted"}`}>
-              {reduceMotion ? "On" : "Off"}
+            <span className="flex shrink-0 items-center gap-2">
+              <span className={`motion-color text-xs ${reduceMotion ? "text-gold" : "text-muted"}`}>
+                {reduceMotion ? "On" : "Off"}
+              </span>
+              <span className={`motion-switch ${reduceMotion ? "is-on" : ""}`} aria-hidden="true">
+                <span />
+              </span>
             </span>
           </button>
         </section>
@@ -108,7 +95,7 @@ export function Settings({
                 type="button"
                 aria-pressed={theme === item.id}
                 onClick={() => onTheme(item.id)}
-                className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 text-left text-sm ${
+                className={`motion-card flex min-h-11 items-center gap-2 rounded-lg border px-3 text-left text-sm ${
                   theme === item.id ? "border-gold text-fg" : "border-line text-muted"
                 }`}
               >
@@ -118,7 +105,8 @@ export function Settings({
             ))}
           </div>
         </section>
-      </div>
-    </div>
+        </>
+      )}
+    </SheetFrame>
   );
 }

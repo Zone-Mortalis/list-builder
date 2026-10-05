@@ -1,41 +1,23 @@
-import { useEffect } from "react";
 import { X } from "lucide-react";
+import { SheetFrame } from "@/components/motion";
 import { bearerNames, detachmentById, enhancementsFor } from "@/data/enhancements";
 import { katahByName } from "@/data/rules";
 
 export function DetachmentSheet({ ids, onClose }: { ids: string[]; onClose: () => void }) {
   const detachments = ids.map((id) => detachmentById(id)).filter((item) => item != null);
 
-  useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
-
   if (detachments.length === 0) return null;
 
   return (
-    <div className="sheet-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Detachment rules"
-        className="sheet-panel max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-line bg-surface px-4 py-4"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <SheetFrame label="Detachment rules" onClose={onClose}>
+      {(close) => (
+        <>
         <div className="flex items-start justify-between gap-3">
           <h2 className="font-display text-2xl">{detachments.length === 1 ? detachments[0]!.name : "Detachments"}</h2>
           <button
             type="button"
             aria-label="Close detachment rules"
-            onClick={onClose}
+            onClick={close}
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted"
           >
             <X className="size-5" />
@@ -106,7 +88,8 @@ export function DetachmentSheet({ ids, onClose }: { ids: string[]; onClose: () =
             );
           })}
         </div>
-      </div>
-    </div>
+        </>
+      )}
+    </SheetFrame>
   );
 }
