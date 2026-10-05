@@ -110,10 +110,40 @@ export function publicAppHost(hostHeader) {
  * request host / X-Forwarded-Host. Never prefer request Host on a published
  * app — Envoy rewrites it to `*.vercel.app`.
  */
-export function resolvePublicHost(hostHeader) {
+/** Hostname from an absolute site URL such as https://custodeslistbuilder.vercel.app. */
+export function sitePublicHost(site = {}) {
+  const raw = String(site.url ?? "").trim();
+  if (!raw) return "";
+  try {
+    const host = new URL(raw.includes("://") ? raw : `https://${raw}`).hostname.toLowerCase();
+    if (!host || !/^[a-z0-9.-]+$/.test(host) || !host.includes(".")) return "";
+    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return "";
+    return host;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Origin for absolute og:image / twitter:image / og:url.
+ * A published grok.me host still wins. Otherwise use the request host when it
+ * is public, and fall back to site.url (the live app alias) for internal
+ * Vercel hosts, preview, and localhost.
+ */
+export function resolvePublicHost(hostHeader, site = {}) {
   return (
-    publicAppHost(process.env?.VITE_PUBLIC_HOSTNAME) || publicAppHost(hostHeader)
+    publicAppHost(process.env?.VITE_PUBLIC_HOSTNAME) ||
+    publicAppHost(hostHeader) ||
+    sitePublicHost(site)
   );
+}
+
+/** Home-screen name. site.name is the short install name; it is not the page title. */
+export function resolveInstallName(site = {}, fallback = "") {
+  const named = String(site.name ?? "").trim();
+  if (named) return named;
+  const fromFallback = String(fallback ?? "").trim();
+  return fromFallback || DEFAULT_APP_NAME;
 }
 
 export function isInstallQuery(url) {
@@ -157,8 +187,8 @@ export function renderInstallPageHtml(template, { host, url } = {}) {
     .replaceAll("{{APP_URL}}", escapeHtml(stripInstallParams(url)));
 }
 
-export function renderWebManifest(hostHeader) {
-  const name = appNameFromHost(hostHeader);
+export function renderWebManifest(hostHeader, site = {}) {
+  const name = resolveInstallName(site, appNameFromHost(hostHeader));
   return JSON.stringify(
     {
       name,
@@ -166,14 +196,18 @@ export function renderWebManifest(hostHeader) {
       id: "/",
       start_url: "/",
       scope: "/",
-      display: "browser",
-      background_color: "#000000",
-      theme_color: "#000000",
+      display: "standalone",
+      background_color: "#110e0a",
+      theme_color: "#110e0a",
       icons: [
+        { src: "/__grok/icon-180.png", sizes: "180x180", type: "image/png", purpose: "any" },
+        { src: "/__grok/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: "/__grok/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
         {
-          src: "/__grok/icon-180.png",
-          sizes: "180x180",
+          src: "/__grok/icon-maskable-512.png",
+          sizes: "512x512",
           type: "image/png",
+          purpose: "maskable",
         },
       ],
     },
@@ -184,16 +218,18 @@ export function renderWebManifest(hostHeader) {
 
 export function grokPwaHeadTags(appName = DEFAULT_APP_NAME) {
   return [
-    // In-browser only. "browser" keeps the site from being installed as an app.
     ["manifest", '<link rel="manifest" href="/__grok/manifest.webmanifest">'],
     ["apple-touch-icon", '<link rel="apple-touch-icon" href="/__grok/icon-180.png">'],
+    ["application-name", `<meta name="application-name" content="${escapeHtml(appName)}">`],
     [
       "apple-mobile-web-app-title",
       `<meta name="apple-mobile-web-app-title" content="${escapeHtml(appName)}">`,
     ],
+    ["apple-mobile-web-app-capable", '<meta name="apple-mobile-web-app-capable" content="yes">'],
+    ["mobile-web-app-capable", '<meta name="mobile-web-app-capable" content="yes">'],
     [
       "apple-mobile-web-app-status-bar-style",
-      '<meta name="apple-mobile-web-app-status-bar-style" content="black">',
+      '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">',
     ],
     ["theme-color", '<meta name="theme-color" content="#000000">'],
   ];
@@ -346,19 +382,23 @@ export function grokOgHeadTags({
   cwd = process.cwd(),
 } = {}) {
   const title = resolveOgTitle(site, appName, host, documentTitle);
-  const publicHost = resolvePublicHost(host);
+  const publicHost = resolvePublicHost(host, site);
   const tags = [
     `<meta name="twitter:card" content="summary_large_image">`,
     `<meta property="og:title" content="${escapeHtml(title)}">`,
+    `<meta property="og:site_name" content="${escapeHtml(title)}">`,
+    `<meta name="twitter:title" content="${escapeHtml(title)}">`,
   ];
   const description = String(site.description ?? "").trim();
   if (description) {
     tags.push(`<meta property="og:description" content="${escapeHtml(description)}">`);
+    tags.push(`<meta name="twitter:description" content="${escapeHtml(description)}">`);
   }
   if (String(site.type ?? "").toLowerCase() === "x:game") {
     tags.push(`<meta property="og:type" content="x:game">`);
   }
   if (publicHost) {
+    tags.push(`<meta property="og:url" content="https://${publicHost}/">`);
     const asset = resolveOgCardAsset(site, cwd);
     const custom = Boolean(asset);
     let image = custom
@@ -366,7 +406,9 @@ export function grokOgHeadTags({
       : `${ogServiceUrl()}/v1/card.png?host=${encodeURIComponent(publicHost)}&title=${encodeURIComponent(title)}`;
     const color = !custom ? placeholderCardColor(site) : "";
     if (color) image += `&color=${encodeURIComponent(color)}`;
-    tags.push(`<meta property="og:image" content="${escapeHtml(image)}">`);
+    const imageTag = escapeHtml(image);
+    tags.push(`<meta property="og:image" content="${imageTag}">`);
+    tags.push(`<meta name="twitter:image" content="${imageTag}">`);
     tags.push(`<meta property="og:image:width" content="1200">`);
     tags.push(`<meta property="og:image:height" content="630">`);
     const banner = String(site.banner ?? "").trim();
@@ -438,12 +480,13 @@ export function injectGrokPwaHead(html, ctx = {}) {
   if (typeof html !== "string") return html;
   const { site, projectId, creator, creatorId, host, cwd } = normalizeHeadContext(ctx);
   const documentTitle = titleFromDocument(html);
-  const appName = resolveOgTitle(
+  const ogTitle = resolveOgTitle(
     site,
     ctx.appName ?? DEFAULT_APP_NAME,
     host,
     documentTitle,
   );
+  const appName = resolveInstallName(site, ogTitle);
   let next = stripShareMetaTags(html);
   if (!readGrokExtensionsEnabled()) next = stripGrokExtensionsScript(next);
 

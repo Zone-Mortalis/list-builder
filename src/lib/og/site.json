@@ -1,0 +1,7 @@
+{
+  "title": "Ten Thousand's List Builder",
+  "name": "Ten Thousand",
+  "description": "Warhammer 40,000 Adeptus Custodes army list builder",
+  "card": "custom",
+  "url": "https://custodeslistbuilder.vercel.app"
+}

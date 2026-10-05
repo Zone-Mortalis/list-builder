@@ -20,6 +20,9 @@ import {
 import { renderInstallPage } from "./grok-pwa-plugin.mjs";
 
 const TEMPLATE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+// Platform cases assume an empty workspace. This app's site.json and og.jpg
+// would otherwise become the default identity for every call that omits `site`.
+process.chdir(mkdtempSync(join(tmpdir(), "grok-pwa-default-cwd-")));
 
 test("injects before </head>", () => {
   const out = injectGrokPwaHead("<html><head><title>x</title></head><body></body></html>");
@@ -512,7 +515,77 @@ test("renders the manifest with the per-app name", () => {
   const manifest = JSON.parse(renderWebManifest("wild-race.grok.me"));
   assert.equal(manifest.name, "Wild Race");
   assert.equal(manifest.short_name, "Wild Race");
-  assert.equal(manifest.icons[0].src, "/__grok/icon-180.png");
+  assert.deepEqual(
+    manifest.icons.map((icon) => [icon.src, icon.sizes, icon.purpose]),
+    [
+      ["/__grok/icon-180.png", "180x180", "any"],
+      ["/__grok/icon-192.png", "192x192", "any"],
+      ["/__grok/icon-512.png", "512x512", "any"],
+      ["/__grok/icon-maskable-512.png", "512x512", "maskable"],
+    ],
+  );
+});
+
+test("install name is Ten Thousand and share tags use the list builder title", () => {
+  const site = {
+    title: "Ten Thousand's List Builder",
+    name: "Ten Thousand",
+    description: "Warhammer 40,000 Adeptus Custodes army list builder",
+    card: "custom",
+    url: "https://custodeslistbuilder.vercel.app",
+  };
+  const manifest = JSON.parse(renderWebManifest("custodeslistbuilder.vercel.app", site));
+  assert.equal(manifest.name, "Ten Thousand");
+  assert.equal(manifest.short_name, "Ten Thousand");
+  assert.equal(manifest.display, "standalone");
+  assert.equal(manifest.background_color, "#110e0a");
+  assert.equal(manifest.theme_color, "#110e0a");
+
+  const out = injectGrokPwaHead(
+    "<html><head><title>The Ten Thousand's List Builder</title></head></html>",
+    { host: "custodeslistbuilder.vercel.app", site },
+  );
+  assert.match(out, /<title>The Ten Thousand's List Builder<\/title>/);
+  assert.match(out, /property="og:title" content="Ten Thousand&#39;s List Builder"/);
+  assert.match(out, /property="og:site_name" content="Ten Thousand&#39;s List Builder"/);
+  assert.match(out, /name="twitter:title" content="Ten Thousand&#39;s List Builder"/);
+  assert.match(
+    out,
+    /property="og:description" content="Warhammer 40,000 Adeptus Custodes army list builder"/,
+  );
+  assert.match(out, /apple-mobile-web-app-title" content="Ten Thousand"/);
+  assert.match(out, /name="application-name" content="Ten Thousand"/);
+  assert.match(out, /property="og:url" content="https:\/\/custodeslistbuilder\.vercel\.app\/"/);
+  assert.match(
+    out,
+    /property="og:image" content="https:\/\/custodeslistbuilder\.vercel\.app\/og\.jpg"/,
+  );
+  assert.match(
+    out,
+    /name="twitter:image" content="https:\/\/custodeslistbuilder\.vercel\.app\/og\.jpg"/,
+  );
+  assert.match(out, /name="twitter:card" content="summary_large_image"/);
+  assert.doesNotMatch(out, /property="og:title" content="The /);
+});
+
+test("falls back to the fixed site url when the request host is not public", () => {
+  const out = injectGrokPwaHead("<html><head></head></html>", {
+    host: "01a020b6-803a-71a2-bb47-e2bec57eb9a2-662k8x1l1-xai-org.vercel.app",
+    site: {
+      title: "Ten Thousand's List Builder",
+      card: "custom",
+      url: "https://custodeslistbuilder.vercel.app",
+    },
+  });
+  assert.match(
+    out,
+    /property="og:image" content="https:\/\/custodeslistbuilder\.vercel\.app\/og\.jpg"/,
+  );
+  assert.match(
+    out,
+    /name="twitter:image" content="https:\/\/custodeslistbuilder\.vercel\.app\/og\.jpg"/,
+  );
+  assert.match(out, /property="og:url" content="https:\/\/custodeslistbuilder\.vercel\.app\/"/);
 });
 
 // Tripwires: the deployed-app path only works if Nitro scans server/ — an
@@ -530,6 +603,9 @@ test("nitro middleware and its bundled assets exist", () => {
   assert.match(middleware, /virtual:grok-og-identity/);
   readFileSync(join(TEMPLATE_ROOT, "scripts/install-page.html"));
   readFileSync(join(TEMPLATE_ROOT, "public/__grok/icon-180.png"));
+  readFileSync(join(TEMPLATE_ROOT, "public/__grok/icon-192.png"));
+  readFileSync(join(TEMPLATE_ROOT, "public/__grok/icon-512.png"));
+  readFileSync(join(TEMPLATE_ROOT, "public/__grok/icon-maskable-512.png"));
   readFileSync(join(TEMPLATE_ROOT, "public/__grok/install/styles.css"));
 });
 
