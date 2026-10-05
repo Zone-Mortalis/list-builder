@@ -21,30 +21,31 @@ export function CoreRules({ onClose, army = false }: { onClose: () => void; army
             <X className="size-5" />
           </button>
         </div>
-        <section className="mt-4">
-          <h3 className="text-xs tracking-wide text-gold uppercase">Army rules</h3>
-          <ul className="mt-2 flex flex-col gap-4">
-            {ARMY_RULES.map((rule) => (
-              <li key={rule.name}>
-                <p className="text-sm font-medium">{rule.name}</p>
-                <p className="text-sm text-muted">{rule.rule}</p>
-                {rule.parts ? (
-                  <ul className="mt-2 flex flex-col gap-2 border-l border-line pl-3">
-                    {rule.parts.map((part) => (
-                      <li key={part.name}>
-                        <p className="text-sm font-medium">{part.name}</p>
-                        <p className="text-sm text-muted">{part.rule}</p>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-        {army ? null : (
+        {army ? (
+          <section className="mt-4">
+            <h3 className="text-xs tracking-wide text-gold uppercase">Army rules</h3>
+            <ul className="mt-2 flex flex-col gap-4">
+              {ARMY_RULES.map((rule) => (
+                <li key={rule.name}>
+                  <p className="text-sm font-medium">{rule.name}</p>
+                  <p className="text-sm text-muted">{rule.rule}</p>
+                  {rule.parts ? (
+                    <ul className="mt-2 flex flex-col gap-2 border-l border-line pl-3">
+                      {rule.parts.map((part) => (
+                        <li key={part.name}>
+                          <p className="text-sm font-medium">{part.name}</p>
+                          <p className="text-sm text-muted">{part.rule}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : (
           <>
-            <section className="mt-6">
+            <section className="mt-4">
               <h3 className="text-xs tracking-wide text-gold uppercase">Rules updates</h3>
               <ul className="mt-2 flex flex-col gap-2">
                 {RULE_UPDATES.map((rule) => (
