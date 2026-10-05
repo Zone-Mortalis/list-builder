@@ -1,0 +1,70 @@
+[
+  {
+    "id": "list-vigil",
+    "name": "Null Vigil",
+    "limit": 2000,
+    "detachments": ["vigil"],
+    "mainDisposition": "Disruption",
+    "warlordId": "centura",
+    "building": true,
+    "updatedAt": 1710000000000,
+    "entries": [
+      {
+        "id": "centura",
+        "unitId": "knight-centura",
+        "models": 1,
+        "addedAt": 1,
+        "attachedTo": "squad",
+        "enhancementId": "huntress",
+        "gear": { "weapon": "blade" }
+      },
+      {
+        "id": "squad",
+        "unitId": "vigilators",
+        "models": 4,
+        "addedAt": 2
+      },
+      {
+        "id": "captain",
+        "unitId": "shield-captain",
+        "models": 1,
+        "addedAt": 3,
+        "attachedTo": "wardens",
+        "gear": { "weapon": "spear" }
+      },
+      {
+        "id": "wardens",
+        "unitId": "wardens",
+        "models": 3,
+        "addedAt": 4,
+        "gear": { "vexilla": "vexilla" }
+      }
+    ]
+  },
+  {
+    "id": "list-sisters",
+    "name": "Priest's Flock",
+    "limit": 2000,
+    "detachments": ["guardians"],
+    "mainDispositions": { "guardians": "Purge the Foe" },
+    "warlordId": "priest",
+    "building": true,
+    "updatedAt": 1710000001000,
+    "entries": [
+      {
+        "id": "priest",
+        "unitId": "ministorum-priest",
+        "models": 1,
+        "addedAt": 1,
+        "attachedTo": "sisters",
+        "gear": { "armament": "vindictor" }
+      },
+      {
+        "id": "sisters",
+        "unitId": "sisters-squad",
+        "models": 10,
+        "addedAt": 2
+      }
+    ]
+  }
+]
