@@ -1,9 +1,10 @@
 import { i as __toESM, n as __exportAll } from "../_runtime.mjs";
-import { K as require_react, _ as createFileRoute, b as require_jsx_runtime, d as Scripts, f as HeadContent, g as lazyRouteComponent, h as Outlet, m as createRouter, v as createRootRoute, y as useRouter } from "../_libs/@tanstack/react-router+[...].mjs";
+import { n as require_react } from "../_libs/formkit__auto-animate+react.mjs";
+import { _ as createFileRoute, b as require_jsx_runtime, d as Scripts, f as HeadContent, g as lazyRouteComponent, h as Outlet, m as createRouter, v as createRootRoute, y as useRouter } from "../_libs/@tanstack/react-router+[...].mjs";
 import { n as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { a as union, i as string, n as number, r as object, t as literal } from "../_libs/zod.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-D9Gvermf.js
-var router_D9Gvermf_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
+//#region node_modules/.nitro/vite/services/ssr/assets/router-GZiZrFO2.js
+var router_GZiZrFO2_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var FALLBACK_MESSAGE = "An unexpected error occurred. Try reloading the page.";
@@ -297,7 +298,7 @@ function PreviewHostBridge() {
 	}, [router]);
 	return null;
 }
-var styles_default = "/assets/styles-DdI6a7Ld.css";
+var styles_default = "/assets/styles-CRMysrJS.css";
 var APP_NAME = "The Ten Thousand's List Builder";
 var Route$1 = createRootRoute({
 	head: () => ({
@@ -339,7 +340,7 @@ var Route$1 = createRootRoute({
 		] })]
 	})
 });
-var $$splitComponentImporter = () => import("./routes-CRAico5l.mjs");
+var $$splitComponentImporter = () => import("./routes-Bdf8ePBy.mjs");
 var rootRouteChildren = { IndexRoute: createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter, "component") }).update({
 	id: "/",
 	path: "/",
@@ -353,4 +354,4 @@ function getRouter() {
 	});
 }
 //#endregion
-export { getRouter, router_D9Gvermf_exports as t };
+export { getRouter, router_GZiZrFO2_exports as t };

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Reveal } from "@/components/motion";
+import { useListMotion } from "@/lib/motion";
 import { ARMY_RULES, katahByName } from "@/data/rules";
 import { detachmentById, ENHANCEMENTS, enhancementsFor } from "@/data/enhancements";
 import { datasheetById } from "@/data/datasheets";
@@ -88,6 +90,8 @@ export function PlayView({
   onBack: () => void;
   onHome: () => void;
 }) {
+  const playListRef = useListMotion<HTMLOListElement>();
+  const stratagemRef = useListMotion<HTMLUListElement>();
   const [tab, setTab] = useState<Tab>("list");
   const [phase, setPhase] = useState<PhaseId | "all">("all");
   const [listFilter, setListFilter] = useState<"all" | "enhancements">("all");
@@ -165,10 +169,8 @@ export function PlayView({
                 Enhancements
               </button>
             </div>
-            {shown.length === 0 ? (
-              <p className="text-sm text-muted">No enhancements selected.</p>
-            ) : (
-              <ol className="flex flex-col gap-2">
+            {shown.length === 0 ? <p className="text-sm text-muted">No enhancements selected.</p> : null}
+              <ol ref={playListRef} className="flex flex-col gap-2">
                 {shown.map((entry) => {
                   const enhancement = entry.enhancement
                     ? ENHANCEMENTS.find((item) => item.name === entry.enhancement)
@@ -176,7 +178,7 @@ export function PlayView({
                   return (
                     <li
                       key={entry.id}
-                      className={`rounded-lg border border-line bg-surface px-3 py-3 ${attachedBodies.has(entry.id) ? "ml-4 border-l-gold" : ""}`}
+                      className={`motion-card rounded-lg border border-line bg-surface px-3 py-3 ${attachedBodies.has(entry.id) ? "ml-4 border-l-gold" : ""}`}
                     >
                       <div className="flex items-baseline justify-between gap-3">
                         <p className="min-w-0 text-sm font-medium break-words">
@@ -212,7 +214,6 @@ export function PlayView({
                   );
                 })}
               </ol>
-            )}
           </div>
         )
       ) : null}
@@ -354,12 +355,12 @@ export function PlayView({
               </button>
             ))}
           </div>
-          <ul className="flex flex-col gap-3">
+          <ul ref={stratagemRef} className="flex flex-col gap-3">
             {stratagems.map((stratagem) => {
               const matches = units.filter((unit) => canTarget(stratagem, unit));
               const phaseLabels = stratagem.phases.map((id) => PHASES.find((item) => item.id === id)?.label ?? id);
               return (
-                <li key={stratagem.id} className="rounded-lg border border-line bg-surface px-3 py-3">
+                <li key={stratagem.id} className="motion-card rounded-lg border border-line bg-surface px-3 py-3">
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="min-w-0 text-sm font-medium break-words">{stratagem.name}</p>
                     <p className="shrink-0 text-sm text-gold">{stratagem.cp} CP</p>
@@ -425,7 +426,7 @@ function MissionTab({ main }: { main?: string }) {
         {yours ? <p className="text-sm text-muted">{yours.summary}</p> : null}
       </div>
       {yours && theirs && pair ? (
-        <div key={`${yours.name}-${theirs.name}`} className="section-open flex min-w-0 flex-col gap-6">
+        <Reveal cue={`${yours.name}-${theirs.name}`} className="flex min-w-0 flex-col gap-6">
           <DispositionPick
             label="Their disposition"
             value={opponent}
@@ -446,7 +447,7 @@ function MissionTab({ main }: { main?: string }) {
               <MissionCardView side="Them" disposition={theirs.name} card={pair.theirs} />
             </div>
           </section>
-        </div>
+        </Reveal>
       ) : null}
     </div>
   );
@@ -518,7 +519,7 @@ function MissionActionView({ action }: { action: MissionAction }) {
 
 function MissionCardView({ side, disposition, card }: { side: string; disposition: string; card: MissionCard }) {
   return (
-    <article className="min-w-0">
+    <article className="motion-card min-w-0">
       <p className="text-xs tracking-wide text-gold uppercase">
         {side} · {disposition}
       </p>

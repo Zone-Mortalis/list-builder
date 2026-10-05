@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, Crown, Minus, Plus, Trash2 } from "lucide-react";
+import { Collapse, MotionSwap, Reveal } from "@/components/motion";
+import { useListMotion } from "@/lib/motion";
 import { DatasheetView, WargearPicker } from "@/components/datasheet-view";
 import { DetachmentSheet } from "@/components/detachment-sheet";
 import { CoreRules } from "@/components/core-rules";
@@ -461,7 +463,7 @@ function DetachmentChoices({
               return (
                 <div
                   key={detachment.id}
-                  className={`rounded-lg border px-4 py-3 ${on ? "border-gold bg-surface" : "border-line bg-bg"} ${
+                  className={`motion-card rounded-lg border px-4 py-3 ${on ? "border-gold bg-surface" : "border-line bg-bg"} ${
                     blocked ? "opacity-40" : ""
                   }`}
                 >
@@ -558,7 +560,7 @@ function DetachmentLibrary({ onHome }: { onHome: () => void }) {
         </label>
       </header>
       {detachment ? (
-        <article className="section-open flex min-w-0 flex-col gap-4">
+        <article key={detachment.id} className="section-open flex min-w-0 flex-col gap-4">
           <div>
             <h2 className="font-display text-2xl">{detachment.name}</h2>
             <p className="mt-1 text-xs text-muted">
@@ -654,12 +656,14 @@ function EnhancementPick({
         onClick={() => setOpen((current) => !current)}
         className="mt-1 inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-lg border border-line bg-bg px-2 text-xs text-fg"
       >
-        <span className="min-w-0 truncate">
+        <MotionSwap cue={selected?.id ?? "none"} className="min-w-0 truncate">
           {selected ? `${selected.name} +${selected.points} pts` : "None"}
-        </span>
-        <ChevronDown className={`size-3.5 shrink-0 text-gold ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+        </MotionSwap>
+        <ChevronDown className={`motion-rotate size-3.5 shrink-0 text-gold ${open ? "rotate-180" : ""}`} aria-hidden="true" />
       </button>
-      {selected && !open ? <p className="mt-1 max-w-full text-xs break-words text-muted">{selected.rule}</p> : null}
+      <Collapse open={Boolean(selected) && !open}>
+        <p className="mt-1 max-w-full text-xs break-words text-muted">{selected?.rule}</p>
+      </Collapse>
       {selected?.weaponMod ? (
         weapons.length > 1 ? (
           <label className="mt-2 flex w-fit max-w-full flex-col items-start text-xs text-muted">
@@ -683,8 +687,8 @@ function EnhancementPick({
           </p>
         )
       ) : null}
-      {open ? (
-        <div className="section-open mt-1 flex w-full min-w-0 flex-col">
+      <Collapse open={open}>
+        <div className="mt-1 flex w-full min-w-0 flex-col">
           <button
             type="button"
             onClick={() => {
@@ -716,12 +720,14 @@ function EnhancementPick({
             </button>
           ))}
         </div>
-      ) : null}
+      </Collapse>
     </div>
   );
 }
 
 export function ListBuilder() {
+  const savedListRef = useListMotion<HTMLDivElement>();
+  const rosterRef = useListMotion<HTMLOListElement>();
   const [lists, setLists] = useState<SavedList[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>("home");
@@ -1094,7 +1100,7 @@ export function ListBuilder() {
             </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div ref={savedListRef} className="flex flex-col gap-2">
             {saved.map((list) => {
               const points = price(list.entries).reduce((sum, entry) => sum + entry.cost, 0);
               const names = list.detachments.map((id) => detachmentById(id)?.name).filter(Boolean).join(", ");
@@ -1103,7 +1109,7 @@ export function ListBuilder() {
                   <button
                     type="button"
                     onClick={() => openList(list.id)}
-                    className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-4 py-4 text-left"
+                    className="motion-card min-w-0 flex-1 rounded-lg border border-line bg-surface px-4 py-4 text-left"
                   >
                     <span className="flex items-baseline justify-between gap-3">
                       <span className="truncate text-base font-medium">{list.name.trim() || "Unnamed"}</span>
@@ -1365,15 +1371,21 @@ export function ListBuilder() {
 
       <div className="sticky top-0 z-20 -mx-4 border-b border-line bg-bg px-4 py-3">
         <div className="mb-2 flex items-baseline justify-between gap-3">
-          <p className={`font-display text-3xl tabular-nums ${over ? "text-danger" : "text-fg"}`}>
-            {total} <span className="font-sans text-base font-normal tracking-normal">pts</span>
+          <p className={`motion-color font-display text-3xl tabular-nums ${over ? "text-danger" : "text-fg"}`}>
+            <MotionSwap cue={total}>{total}</MotionSwap>{" "}
+            <span className="font-sans text-base font-normal tracking-normal">pts</span>
           </p>
-          <p className={`text-sm ${over ? "text-danger" : "text-muted"}`}>
-            {over ? `${Math.abs(remaining)} pts over` : `${remaining} pts left`} of {roster.limit} pts
+          <p className={`motion-color text-sm ${over ? "text-danger" : "text-muted"}`}>
+            <MotionSwap cue={`${over ? "over" : "under"}-${remaining}`}>
+              {over ? `${Math.abs(remaining)} pts over` : `${remaining} pts left`} of {roster.limit} pts
+            </MotionSwap>
           </p>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-raised">
-          <div className={`h-full ${over ? "bg-danger" : "bg-gold"}`} style={{ width: `${fill}%` }} />
+          <div
+            className={`points-fill h-full ${over ? "bg-danger" : "bg-gold"}`}
+            style={{ transform: `scaleX(${fill / 100})` }}
+          />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
           {(["units", "list"] as const).map((key) => (
@@ -1385,7 +1397,7 @@ export function ListBuilder() {
                 panel === key ? "border-gold bg-gold text-bg" : "border-line bg-surface text-fg"
               }`}
             >
-              {key === "units" ? "Units" : `List (${priced.length})`}
+              {key === "units" ? "Units" : <>List (<MotionSwap cue={priced.length}>{priced.length}</MotionSwap>)</>}
             </button>
           ))}
         </div>
@@ -1436,7 +1448,7 @@ export function ListBuilder() {
               {category === "Imperial Retinue" ? retinueCounting(roster.entries) : categoryCount(category, roster.entries, roster.detachments)} of {categoryLimit(category)} {category}
             </p>
           ) : null}
-          <div className="min-w-0">
+          <Reveal cue={category} className="min-w-0">
             {visible.length === 0 ? (
               <p className="py-6 text-sm text-muted">Nothing matches.</p>
             ) : (
@@ -1449,7 +1461,7 @@ export function ListBuilder() {
                 const taken = roster.entries.filter((entry) => entry.unitId === unit.id).length;
                 const nextLine = upcoming == null ? null : priceLine(unit, models, taken, { wargear: gearCost });
                 return (
-                  <article key={unit.id} className="min-w-0 border-b border-line py-4 last:border-b-0">
+                  <article key={unit.id} className="motion-surface min-w-0 border-b border-line py-4 last:border-b-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h2 className="text-base leading-snug font-medium break-words">{unit.name}</h2>
@@ -1526,7 +1538,7 @@ export function ListBuilder() {
                 );
               })
             )}
-          </div>
+          </Reveal>
         </section>
 
         <section key={panel === "list" ? "list" : "list-hidden"} className={panel === "units" ? "hidden" : "section-open"}>
@@ -1538,7 +1550,7 @@ export function ListBuilder() {
                 onClick={copyList}
                 className="min-h-11 rounded-lg border border-line px-3 text-sm text-fg"
               >
-                {copied ? "Copied" : "Copy"}
+                <MotionSwap cue={copied ? "copied" : "copy"}>{copied ? "Copied" : "Copy"}</MotionSwap>
               </button>
               <button
                 type="button"
@@ -1550,11 +1562,9 @@ export function ListBuilder() {
             </div>
           </div>
           <div>
-          {priced.length === 0 ? (
-            <p className="py-6 text-sm text-muted">Add a unit.</p>
-          ) : (
-            <ol>
-              {priced.some((entry) => canBeWarlord(entry.unitId)) && !roster.warlordId ? (
+          {priced.length === 0 ? <p className="py-6 text-sm text-muted">Add a unit.</p> : null}
+            <ol ref={rosterRef}>
+              {priced.length > 0 && priced.some((entry) => canBeWarlord(entry.unitId)) && !roster.warlordId ? (
                 <li className="border-b border-line py-3 text-sm text-danger">Choose a warlord.</li>
               ) : null}
               {priced.map((entry) => {
@@ -1573,7 +1583,7 @@ export function ListBuilder() {
                   enhancement: entry.enhancementId ? (enhancementById(entry.enhancementId)?.points ?? 0) : 0,
                 });
                 return (
-                <li key={entry.id} className={`border-b border-line py-3 last:border-b-0 ${leader ? "border-l-2 border-l-gold pl-4" : ""}`}>
+                <li key={entry.id} className={`motion-surface border-b border-line py-3 last:border-b-0 ${leader ? "border-l-2 border-l-gold pl-4" : ""}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium break-words">
@@ -1588,7 +1598,9 @@ export function ListBuilder() {
                         {entry.enhancementId ? ` · ${enhancementById(entry.enhancementId)?.name ?? ""}` : ""}
                       </p>
                     </div>
-                    <p className="shrink-0 text-sm text-gold tabular-nums">{entry.cost} pts</p>
+                    <p className="shrink-0 text-sm text-gold tabular-nums">
+                      <MotionSwap cue={entry.cost}>{entry.cost} pts</MotionSwap>
+                    </p>
                   </div>
                   {kit ? <p className="mt-1 text-xs break-words text-muted">{kit}</p> : null}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -1671,7 +1683,6 @@ export function ListBuilder() {
                 );
               })}
             </ol>
-          )}
           </div>
         </section>
       </div>

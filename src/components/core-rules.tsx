@@ -1,39 +1,21 @@
-import { useEffect } from "react";
 import { X } from "lucide-react";
+import { SheetFrame } from "@/components/motion";
 import { ARMY_RULES, FLY_RULE, KEYWORD_RULES, WEAPON_ABILITIES } from "@/data/rules";
 import { RULE_UPDATES, USING_STRATAGEMS } from "@/data/stratagems";
 
 export function CoreRules({ onClose, army = false }: { onClose: () => void; army?: boolean }) {
-  useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
-
   const abilities = WEAPON_ABILITIES.filter((ability) => ability.key !== "pistol");
 
   return (
-    <div className="sheet-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={army ? "Army rules" : "Core rules"}
-        className="sheet-panel max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-line bg-surface px-4 py-4"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <SheetFrame label={army ? "Army rules" : "Core rules"} onClose={onClose}>
+      {(close) => (
+        <>
         <div className="flex items-start justify-between gap-3">
           <h2 className="font-display text-2xl">{army ? "Army rules" : "Core rules"}</h2>
           <button
             type="button"
             aria-label={army ? "Close army rules" : "Close core rules"}
-            onClick={onClose}
+            onClick={close}
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted"
           >
             <X className="size-5" />
@@ -99,7 +81,8 @@ export function CoreRules({ onClose, army = false }: { onClose: () => void; army
             </section>
           </>
         )}
-      </div>
-    </div>
+        </>
+      )}
+    </SheetFrame>
   );
 }

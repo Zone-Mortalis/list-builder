@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, ChevronDown, Minus, Plus, X } from "lucide-react";
+import { Collapse, SheetFrame } from "@/components/motion";
 import { datasheetById, KEYWORDS, type WeaponProfile } from "@/data/datasheets";
 import { resolvedLoadout } from "@/data/loadouts";
 import { explainTag, FLY_RULE } from "@/data/rules";
@@ -48,12 +49,12 @@ function WeaponLine({ weapon, original, granted }: { weapon: WeaponProfile; orig
           })}
         </div>
       ) : null}
-      {explained ? (
+      <Collapse open={Boolean(explained)}>
         <p className="text-xs text-muted">
-          {explained.only ? `Only against ${explained.only}. ` : ""}
-          {explained.rule}
+          {explained?.only ? `Only against ${explained.only}. ` : ""}
+          {explained?.rule}
         </p>
-      ) : null}
+      </Collapse>
       <dl className="mt-2 grid grid-cols-6 gap-1 text-center">
         {cells.map(([label, value, marked]) => (
           <div key={label} className="min-w-0">
@@ -85,7 +86,9 @@ function KeywordLine({ text }: { text: string }) {
           </span>
         ))}
       </p>
-      {open ? <p className="mt-1 text-sm text-muted">{FLY_RULE}</p> : null}
+      <Collapse open={open}>
+        <p className="mt-1 text-sm text-muted">{FLY_RULE}</p>
+      </Collapse>
     </div>
   );
 }
@@ -226,11 +229,12 @@ function GearGroupControl({
         }`}
       >
         <span
-          className={`grid size-6 shrink-0 place-items-center rounded-full border ${
+          className={`motion-dot relative grid size-6 shrink-0 place-items-center rounded-full border ${
             on ? "border-gold bg-gold text-bg" : "border-line bg-bg text-muted"
           }`}
         >
-          {on ? <Check className="size-3.5" aria-hidden="true" /> : <Plus className="size-3.5" aria-hidden="true" />}
+          <Check className={`motion-icon size-3.5 ${on ? "motion-icon-on" : "motion-icon-off"}`} aria-hidden="true" />
+          <Plus className={`motion-icon size-3.5 ${on ? "motion-icon-off" : "motion-icon-on"}`} aria-hidden="true" />
         </span>
         <span className="min-w-0">{item.name}</span>
         <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] tracking-wide uppercase ${on ? "bg-gold text-bg" : "bg-raised text-muted"}`}>
@@ -299,19 +303,6 @@ export function DatasheetView({
   const sheet = datasheetById(unitId);
   const keywords = KEYWORDS[unitId];
 
-  useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
-
   if (!sheet) return null;
 
   const presented = listOnly ? playSheet({ unitId, models, gear, enhancementId, enhancementWeapon }) : null;
@@ -332,17 +323,12 @@ export function DatasheetView({
   const selectedKit = gearLine(unitId, gear, true, models);
 
   return (
-    <div className="sheet-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${unitName} datasheet`}
-        className="sheet-panel max-h-[88vh] w-full max-w-lg overflow-auto rounded-t-xl border border-line bg-surface px-4 py-4"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <SheetFrame label={`${unitName} datasheet`} onClose={onClose}>
+      {(close) => (
+        <>
         <div className="flex items-start justify-between gap-3">
           <h2 className="font-display text-2xl">{unitName}</h2>
-          <button type="button" aria-label="Close datasheet" onClick={onClose} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted">
+          <button type="button" aria-label="Close datasheet" onClick={close} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted">
             <X className="size-5" />
           </button>
         </div>
@@ -403,7 +389,8 @@ export function DatasheetView({
             </section>
           ) : null}
         </div>
-      </div>
-    </div>
+        </>
+      )}
+    </SheetFrame>
   );
 }
