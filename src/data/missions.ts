@@ -502,10 +502,10 @@ const MISSION_PAIRS: Record<string, Record<string, readonly [number, number]>> =
     "Priority Assets": [4, 3],
   },
   "Priority Assets": {
-    "Take and Hold": [0, 0],
-    "Purge the Foe": [1, 1],
-    Disruption: [2, 2],
-    Reconnaissance: [3, 3],
+    "Take and Hold": [0, 4],
+    "Purge the Foe": [1, 4],
+    Disruption: [2, 4],
+    Reconnaissance: [3, 4],
     "Priority Assets": [4, 4],
   },
 };
