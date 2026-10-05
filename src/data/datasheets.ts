@@ -168,7 +168,7 @@ export const DATASHEETS: Record<string, Datasheet> = {
     ranged: [
       gun("Castellan axe", "Assault, Rapid Fire 2", '24"', "2", "2+", "5", "−1", "2"),
       gun("Guardian spear", "Assault, Rapid Fire 2", '24"', "2", "2+", "5", "−1", "2"),
-      gun("Pyrithite spear", "Assault, Melta 2", '12"', "1", "2+", "10", "−3", "3+2"),
+      gun("Pyrithite spear", "Assault, Melta 2", '12"', "1", "2+", "10", "−3", "D3+2"),
     ],
     melee: [
       blade("Castellan axe", "", "5", "2+", "10", "−2", "4"),
@@ -224,11 +224,11 @@ export const DATASHEETS: Record<string, Datasheet> = {
     stats: { m: '9"', t: "10", sv: "2+", w: "12", ld: "5+", oc: "3", inv: "5+", damaged: "4" },
     ranged: [
       gun("Adrathic combi-destructor", "", '12"', "2", "2+", "5", "−2", "3"),
-      gun("Dreadspear", "", '18"', "2", "2+", "10", "−3", "3+2"),
+      gun("Dreadspear", "", '18"', "2", "2+", "10", "−3", "D3+2"),
       gun("Lastrum storm bolter", "Rapid Fire 3", '24"', "3", "2+", "5", "−1", "1"),
       gun("Twin Infernus incinerator", "Blast 2, Torrent, Twin-linked", '12"', "3", "—", "6", "−1", "1"),
     ],
-    melee: [blade("Dreadspear", "Lance", "5", "2+", "12", "−3", "3+3")],
+    melee: [blade("Dreadspear", "Lance", "5", "2+", "12", "−3", "D3+3")],
     fixed: "1 Dreadspear, 2 Lastrum storm bolters.",
     swaps: "The bolters may be swapped for 2 Adrathic combi-destructors or 2 Twin Infernus incinerators.",
     abilities: [{ name: "Unyielding Ancient", rule: UNYIELDING }],
@@ -258,7 +258,7 @@ export const DATASHEETS: Record<string, Datasheet> = {
     stats: { m: '12"', t: "8", sv: "2+", w: "10", ld: "5+", oc: "2", inv: "4+" },
     ranged: [
       gun("Hurricane bolter", "Rapid Fire 3, Twin-linked", '18"', "3", "2+", "5", "−1", "2"),
-      gun("Salvo launcher", "", '24"', "2", "2+", "10", "−2", "3+2"),
+      gun("Salvo launcher", "", '24"', "2", "2+", "10", "−2", "D3+2"),
     ],
     melee: [blade("Interceptor lance", "Lance", "8", "2+", "8", "−2", "2")],
     fixed: "1 Interceptor lance, 1 Salvo launcher.",
@@ -324,7 +324,7 @@ export const DATASHEETS: Record<string, Datasheet> = {
     stats: { m: '12"', t: "8", sv: "2+", w: "7", ld: "5+", oc: "2", inv: "4+" },
     ranged: [
       gun("Hurricane bolter", "Rapid Fire 3, Twin-linked", '18"', "3", "2+", "5", "−1", "2"),
-      gun("Salvo launcher", "", '24"', "2", "2+", "10", "−2", "3+2"),
+      gun("Salvo launcher", "", '24"', "2", "2+", "10", "−2", "D3+2"),
     ],
     melee: [blade("Interceptor lance", "Lance", "6", "2+", "8", "−2", "2")],
     fixed: "1 Interceptor lance, 1 Salvo launcher.",
@@ -339,7 +339,7 @@ export const DATASHEETS: Record<string, Datasheet> = {
       gun("Adrathic devastator", "", '18"', "3", "2+", "8", "−2", "3"),
       gun("Arachnus volley cannon", "Devastating Wounds, Sustained Hits 1", '24"', "8", "2+", "5", "−1", "1"),
       gun("Lastrum bolt cannon", "Sustained Hits 1", '36"', "3", "2+", "6", "−2", "2"),
-      gun("Twin Corvae las-pulser", "Twin-linked", '18"', "1", "2+", "10", "−3", "3+2"),
+      gun("Twin Corvae las-pulser", "Twin-linked", '18"', "1", "2+", "10", "−3", "D3+2"),
     ],
     melee: [blade("Solarite power lance", "Lance", "5", "2+", "8", "−2", "3")],
     fixed: "1 Lastrum bolt cannon, 1 Solarite power lance.",
@@ -349,7 +349,7 @@ export const DATASHEETS: Record<string, Datasheet> = {
   pallas: {
     stats: { m: '12"', t: "9", sv: "2+", w: "10", ld: "5+", oc: "2", inv: "5+" },
     ranged: [
-      gun("Twin Arachnus blaze cannon", "Twin-linked", '24"', "2", "2+", "10", "−3", "3+2"),
+      gun("Twin Arachnus blaze cannon", "Twin-linked", '24"', "2", "2+", "10", "−3", "D3+2"),
       gun("Twin Iliastus accelerator fusil", "Rapid Fire 2, Twin-linked", '48"', "2", "2+", "10", "−1", "3"),
     ],
     melee: [blade("Armoured hull", "", "3", "4+", "6", "0", "1")],
@@ -365,7 +365,7 @@ export const DATASHEETS: Record<string, Datasheet> = {
   coronus: {
     stats: { m: '12"', t: "12", sv: "2+", w: "16", ld: "5+", oc: "5", inv: "5+", damaged: "6" },
     ranged: [
-      gun("Twin Arachnus blaze cannon", "Twin-linked", '24"', "2", "2+", "10", "−3", "3+2"),
+      gun("Twin Arachnus blaze cannon", "Twin-linked", '24"', "2", "2+", "10", "−3", "D3+2"),
       gun("Twin Lastrum bolt cannon", "Sustained Hits 1, Twin-linked", '36"', "3", "2+", "6", "−2", "2"),
       gun("Twin Neutronium cascade projectors", "Blast 1, Torrent, Twin-linked", '12"', "3", "—", "7", "−2", "1"),
     ],
@@ -397,7 +397,7 @@ export const DATASHEETS: Record<string, Datasheet> = {
   "caladius-annihilator": {
     stats: { m: '10"', t: "11", sv: "2+", w: "14", ld: "5+", oc: "4", inv: "5+", damaged: "5" },
     ranged: [
-      gun("Arachnus blaze carronade", "Lethal Hits: Monster/Vehicle", '48"', "4", "2+", "12", "−3", "6+2"),
+      gun("Arachnus blaze carronade", "Lethal Hits: Monster/Vehicle", '48"', "4", "2+", "12", "−3", "D6+2"),
       gun("Twin Lastrum bolt cannon", "Sustained Hits 1, Twin-linked", '36"', "3", "2+", "6", "−2", "2"),
       gun("Twin Neutronium cascade projectors", "Blast 1, Torrent, Twin-linked", '12"', "3", "—", "7", "−2", "1"),
     ],
@@ -476,7 +476,7 @@ export const DATASHEETS: Record<string, Datasheet> = {
   rhino: {
     stats: { m: '12"', t: "9", sv: "3+", w: "10", ld: "6+", oc: "2" },
     ranged: [
-      gun("Hunter-killer missile", "One Shot", '48"', "1", "2+", "14", "−3", "3+3"),
+      gun("Hunter-killer missile", "One Shot", '48"', "1", "2+", "14", "−3", "D3+3"),
       gun("Storm bolter", "Rapid Fire 2", '24"', "2", "3+", "5", "−1", "1"),
     ],
     melee: [blade("Armoured tracks", "", "3", "4+", "6", "0", "1")],
