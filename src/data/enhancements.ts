@@ -55,18 +55,8 @@ const CAPTAINS = ["shield-captain", "shield-captain-allarus", "shield-captain-je
 const DREADS = ["telemon", "galatus", "achillus"] as const;
 const GRAV = ["pallas", "caladius", "caladius-annihilator", "coronus"] as const;
 const SENTINELS = ["sentinel-guard", "custodian-guard", "wardens"] as const;
-const EAGLE = [
-  "shield-captain",
-  "blade-champion",
-  "sentinel-guard",
-  "custodian-guard",
-  "wardens",
-  "venatari-kinetic",
-  "venatari-lances",
-  "vertus",
-  "gyrfalcon",
-  "shield-captain-jetbike",
-] as const;
+/** Infantry Characters plus the Dawneagle Jetbike Shield-Captain. Terminators stay out. */
+const EAGLE = ["shield-captain", "blade-champion", "shield-captain-jetbike"] as const;
 
 export const DETACHMENTS: Detachment[] = [
   {
@@ -735,8 +725,7 @@ export const ENHANCEMENTS: Enhancement[] = [
     name: "Auric Eagle",
     detachment: "solar",
     points: 15,
-    upgrade: true,
-    rule: "Upgrade for an Adeptus Custodes Infantry or Mounted unit only, excluding Terminator units. It has +1 to advance rolls and charge rolls.",
+    rule: "Adeptus Custodes Infantry Character or Jetbike Character model only, excluding Terminators. It has +1 to advance rolls and charge rolls.",
     targets: EAGLE,
   },
   {
