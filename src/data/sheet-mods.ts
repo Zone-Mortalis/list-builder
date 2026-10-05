@@ -1,3 +1,16 @@
+import {
+  astartesShieldTaken,
+  bannerTaken,
+  equippedKeywordGrants,
+  invulnFromAffects,
+  selectedAffects,
+  simulacrumTaken,
+  vexillaTaken,
+  type Affects,
+  type UnitStat,
+  type WeaponAffect,
+  type WeaponStat,
+} from "@/data/characteristic-mods";
 import { datasheetById, type ModelStats, type WeaponProfile } from "@/data/datasheets";
 import { enhancementById, type WeaponMod } from "@/data/enhancements";
 import { weaponTaken } from "@/data/units";
@@ -102,18 +115,11 @@ function taken(gear: Record<string, string> | undefined, id: string): boolean {
 }
 
 function hasAstartesShield(unitId: string, gear: Record<string, string> | undefined): boolean {
-  if (!gear) return false;
-  if (unitId === "aquila") return Object.entries(gear).some(([key, value]) => key.startsWith("hammer") && value === "shield");
-  if (unitId === "deathwatch-kt") {
-    return gear.sergeant === "shield-bolt" || gear.sergeant === "shield-power" || taken(gear, "shield-bolt") || taken(gear, "shield-power");
-  }
-  return false;
+  return astartesShieldTaken(unitId, gear);
 }
 
 function hasSimulacrum(unitId: string, gear: Record<string, string> | undefined): boolean {
-  if (unitId === "sisters-squad") return gear?.simulacrum === "sim";
-  if (unitId === "sanctifiers") return taken(gear, "simulacrum");
-  return false;
+  return simulacrumTaken(unitId, gear);
 }
 
 /** Optional datasheet abilities that only exist when that wargear is equipped. */
@@ -179,15 +185,17 @@ export function playSheet({
   const sheet = datasheetById(unitId);
   if (!sheet) return null;
   const enhancement = enhancementId ? enhancementById(enhancementId) : undefined;
-  const auspex = gear?.extra === "auspex";
-  const oc = (gear?.vexilla === "vexilla" ? 1 : 0) + (taken(gear, "banner") ? 1 : 0);
+  const affects = selectedAffects({ unitId, gear, enhancementId });
+  const rangedKeywords = equippedKeywordGrants(affects, "ranged");
+  const oc = (vexillaTaken(gear) ? 1 : 0) + (bannerTaken(gear) ? 1 : 0);
   const leadership = hasSimulacrum(unitId, gear) ? 1 : 0;
   const wounds = enhancement?.wounds ?? 0;
+  const inv = invulnFromAffects(affects);
   const mod = enhancement?.weaponMod;
   const target = mod ? chosenWeapon(weaponChoices(unitId, models, gear, mod.scope), enhancementWeapon) : undefined;
   const adjust = (weapon: WeaponProfile, scope: "ranged" | "melee"): WeaponProfile => {
     let next = weapon;
-    if (scope === "ranged" && auspex) next = { ...next, tags: addTags(next.tags, "Ignores Cover") };
+    if (scope === "ranged" && rangedKeywords.length) next = { ...next, tags: addTags(next.tags, rangedKeywords.join(", ")) };
     if (mod && target && mod.scope === scope && target.names.includes(weapon.name)) next = applyWeapon(next, mod);
     return next;
   };
@@ -199,8 +207,9 @@ export function playSheet({
   }
   const abilities = sheet.abilities.filter((ability) => wargearAbility(ability.name, unitId, gear) !== false);
   if (enhancement) abilities.push({ name: enhancement.name, rule: enhancement.rule });
+  const stats = patchStats(sheet.stats, wounds, oc, leadership);
   return {
-    stats: patchStats(sheet.stats, wounds, oc, leadership),
+    stats: inv ? { ...stats, inv } : stats,
     profiles: (sheet.profiles ?? []).map((profile) => ({
       ...profile,
       stats: patchStats(profile.stats, 0, oc, leadership),
@@ -209,4 +218,102 @@ export function playSheet({
     melee,
     abilities,
   };
+}
+
+export type WeaponMark = {
+  name: boolean;
+  stats: ReadonlySet<WeaponStat>;
+  /** Lowercased keywords to mark. Null marks every keyword on the profile. */
+  keywords: ReadonlySet<string> | null;
+};
+
+export type CharacteristicMarks = {
+  /** Profile key (`primary` or an extra profile name) to the unit stats that option changes. */
+  unit: ReadonlyMap<string, ReadonlySet<UnitStat>>;
+  /** Keyed by `${scope}\\0${weapon name}`. */
+  weapons: ReadonlyMap<string, WeaponMark>;
+  unitKeywords: ReadonlySet<string>;
+};
+
+export function weaponMarkKey(scope: "ranged" | "melee", name: string): string {
+  return `${scope}\0${name}`;
+}
+
+export function keywordMarked(mark: WeaponMark | undefined, tag: string): boolean {
+  if (!mark?.stats.has("keywords")) return false;
+  if (mark.keywords == null) return true;
+  return mark.keywords.has(tag.toLowerCase());
+}
+
+type MutableWeaponMark = { name: boolean; stats: Set<WeaponStat>; keywords: Set<string>; allKeywords: boolean };
+
+function addWeaponMark(weapons: Map<string, MutableWeaponMark>, scope: "ranged" | "melee", name: string, affect: WeaponAffect) {
+  const key = weaponMarkKey(scope, name);
+  const mark = weapons.get(key) ?? { name: false, stats: new Set<WeaponStat>(), keywords: new Set<string>(), allKeywords: false };
+  if (affect.name) mark.name = true;
+  for (const stat of affect.stats) mark.stats.add(stat);
+  if (affect.stats.includes("keywords")) {
+    if (affect.keywords?.length) {
+      for (const keyword of affect.keywords) mark.keywords.add(keyword.toLowerCase());
+    } else mark.allKeywords = true;
+  }
+  weapons.set(key, mark);
+}
+
+/** Highlights for characteristics a selected enhancement or wargear option actually changes. */
+export function characteristicMarks({
+  unitId,
+  models = 1,
+  gear,
+  enhancementId,
+  enhancementWeapon,
+}: {
+  unitId: string;
+  models?: number;
+  gear?: Record<string, string>;
+  enhancementId?: string;
+  enhancementWeapon?: string;
+}): CharacteristicMarks {
+  const sheet = datasheetById(unitId);
+  const unit = new Map<string, Set<UnitStat>>();
+  const weapons = new Map<string, MutableWeaponMark>();
+  const unitKeywords = new Set<string>();
+  const profileNames = sheet?.profiles?.map((profile) => profile.name) ?? [];
+  const enhancement = enhancementId ? enhancementById(enhancementId) : undefined;
+
+  const markUnit = (stat: UnitStat, profiles: "primary" | "all" | undefined) => {
+    const keys = profiles === "all" ? ["primary", ...profileNames] : ["primary"];
+    for (const key of keys) {
+      const stats = unit.get(key) ?? new Set<UnitStat>();
+      stats.add(stat);
+      unit.set(key, stats);
+    }
+  };
+
+  const apply = (item: Affects) => {
+    if (item.unit) {
+      for (const stat of item.unit.stats) markUnit(stat, item.unit.profiles);
+    }
+    for (const keyword of item.unitKeywords ?? []) unitKeywords.add(keyword);
+    for (const weapon of item.weapons ?? []) {
+      if (weapon.where.kind === "granted") addWeaponMark(weapons, weapon.where.scope, weapon.where.name, weapon);
+      else if (weapon.where.kind === "equipped") {
+        for (const choice of weaponChoices(unitId, models, gear, weapon.where.scope)) {
+          for (const name of choice.names) addWeaponMark(weapons, weapon.where.scope, name, weapon);
+        }
+      } else if (enhancement?.weaponMod) {
+        const chosen = chosenWeapon(weaponChoices(unitId, models, gear, enhancement.weaponMod.scope), enhancementWeapon);
+        if (!chosen) continue;
+        for (const name of chosen.names) addWeaponMark(weapons, enhancement.weaponMod.scope, name, weapon);
+      }
+    }
+  };
+
+  for (const item of selectedAffects({ unitId, gear, enhancementId })) apply(item);
+
+  const frozen = new Map<string, WeaponMark>();
+  for (const [key, mark] of weapons) {
+    frozen.set(key, { name: mark.name, stats: mark.stats, keywords: mark.allKeywords ? null : mark.keywords });
+  }
+  return { unit, weapons: frozen, unitKeywords };
 }

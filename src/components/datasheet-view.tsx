@@ -3,32 +3,30 @@ import { Check, ChevronDown, Minus, Plus, X } from "lucide-react";
 import { datasheetById, KEYWORDS, type WeaponProfile } from "@/data/datasheets";
 import { resolvedLoadout } from "@/data/loadouts";
 import { explainTag, FLY_RULE } from "@/data/rules";
-import { playSheet } from "@/data/sheet-mods";
+import { characteristicMarks, keywordMarked, playSheet, weaponMarkKey, type WeaponMark } from "@/data/sheet-mods";
 import { gearGroups, gearLine, type GearGroup } from "@/data/units";
 
-function WeaponLine({ weapon, original, granted }: { weapon: WeaponProfile; original?: WeaponProfile; granted?: boolean }) {
+function WeaponLine({ weapon, mark }: { weapon: WeaponProfile; mark?: WeaponMark }) {
   const melee = weapon.range === "Melee";
   const skill = weapon.skill.replace(/^BS |^WS /, "");
-  const previousSkill = original?.skill.replace(/^BS |^WS /, "");
   const tags = weapon.tags?.split(",").map((tag) => tag.trim()).filter(Boolean) ?? [];
-  const oldTags = new Set(original?.tags?.split(",").map((tag) => tag.trim()) ?? []);
   const [open, setOpen] = useState<string | null>(null);
   const explained = open ? explainTag(open) : undefined;
   const cells: [string, string, boolean][] = [
-    ["R", weapon.range, Boolean(granted || (original && weapon.range !== original.range))],
-    [melee ? "WS" : "BS", skill, Boolean(granted || (original && skill !== previousSkill))],
-    ["A", weapon.a, Boolean(granted || (original && weapon.a !== original.a))],
-    ["S", weapon.s, Boolean(granted || (original && weapon.s !== original.s))],
-    ["AP", weapon.ap, Boolean(granted || (original && weapon.ap !== original.ap))],
-    ["D", weapon.d, Boolean(granted || (original && weapon.d !== original.d))],
+    ["R", weapon.range, Boolean(mark?.stats.has("range"))],
+    [melee ? "WS" : "BS", skill, Boolean(mark?.stats.has("skill"))],
+    ["A", weapon.a, Boolean(mark?.stats.has("a"))],
+    ["S", weapon.s, Boolean(mark?.stats.has("s"))],
+    ["AP", weapon.ap, Boolean(mark?.stats.has("ap"))],
+    ["D", weapon.d, Boolean(mark?.stats.has("d"))],
   ];
   return (
     <li className="rounded-lg border border-line bg-bg px-3 py-2">
-      <p className={`text-sm font-medium ${granted ? "text-modified" : ""}`}>{weapon.name}</p>
+      <p className={`text-sm font-medium ${mark?.name ? "text-modified" : ""}`}>{weapon.name}</p>
       {tags.length > 0 ? (
         <div className="mt-1 flex flex-wrap gap-1">
           {tags.map((tag) => {
-            const added = Boolean(granted || (original && !oldTags.has(tag)));
+            const added = keywordMarked(mark, tag);
             return explainTag(tag) ? (
               <button
                 key={tag}
@@ -66,47 +64,74 @@ function WeaponLine({ weapon, original, granted }: { weapon: WeaponProfile; orig
   );
 }
 
-function KeywordLine({ text }: { text: string }) {
+function KeywordLine({ text, marked }: { text: string; marked?: ReadonlySet<string> }) {
   const parts = text.split(",").map((part) => part.trim()).filter(Boolean);
   const [open, setOpen] = useState(false);
   return (
     <div className="mt-1">
       <p className="text-sm">
-        {parts.map((part, index) => (
-          <span key={`${part}-${index}`}>
-            {index > 0 ? ", " : ""}
-            {part === "Fly" ? (
-              <button type="button" onClick={() => setOpen((current) => !current)} className="text-gold underline">
-                Fly
-              </button>
-            ) : (
-              part
-            )}
-          </span>
-        ))}
+        {parts.map((part, index) => {
+          const hot = marked?.has(part.toLowerCase());
+          return (
+            <span key={`${part}-${index}`}>
+              {index > 0 ? ", " : ""}
+              {part === "Fly" ? (
+                <button type="button" onClick={() => setOpen((current) => !current)} className={`${hot ? "text-modified" : "text-gold"} underline`}>
+                  Fly
+                </button>
+              ) : (
+                <span className={hot ? "text-modified" : undefined}>{part}</span>
+              )}
+            </span>
+          );
+        })}
       </p>
       {open ? <p className="mt-1 text-sm text-muted">{FLY_RULE}</p> : null}
     </div>
   );
 }
 
-function WeaponBlock({ title, weapons, originals }: { title: string; weapons: WeaponProfile[]; originals?: Map<string, WeaponProfile> }) {
+function WeaponBlock({
+  title,
+  weapons,
+  scope,
+  marks,
+}: {
+  title: string;
+  weapons: WeaponProfile[];
+  scope: "ranged" | "melee";
+  marks?: ReadonlyMap<string, WeaponMark>;
+}) {
   if (weapons.length === 0) return null;
   return (
     <section>
       <h3 className="text-xs tracking-wide text-gold uppercase">{title}</h3>
       <ul className="mt-2 flex flex-col gap-2">
         {weapons.map((weapon) => (
-          <WeaponLine
-            key={`${title}-${weapon.name}`}
-            weapon={weapon}
-            original={originals?.get(weapon.name)}
-            granted={originals != null && !originals.has(weapon.name)}
-          />
+          <WeaponLine key={`${title}-${weapon.name}`} weapon={weapon} mark={marks?.get(weaponMarkKey(scope, weapon.name))} />
         ))}
       </ul>
     </section>
   );
+}
+
+const UNIT_STAT: Record<string, "m" | "t" | "sv" | "w" | "ld" | "oc" | "inv" | undefined> = {
+  M: "m",
+  T: "t",
+  Sv: "sv",
+  W: "w",
+  Ld: "ld",
+  OC: "oc",
+  Inv: "inv",
+};
+
+function withMarkedKeywords(base: string | undefined, marked: ReadonlySet<string>): string {
+  const parts = (base ?? "").split(",").map((part) => part.trim()).filter(Boolean);
+  const have = new Set(parts.map((part) => part.toLowerCase()));
+  for (const keyword of marked) {
+    if (!have.has(keyword.toLowerCase())) parts.push(keyword);
+  }
+  return parts.join(", ");
 }
 
 export function WargearPicker({
@@ -315,6 +340,7 @@ export function DatasheetView({
   if (!sheet) return null;
 
   const presented = listOnly ? playSheet({ unitId, models, gear, enhancementId, enhancementWeapon }) : null;
+  const marks = listOnly ? characteristicMarks({ unitId, models, gear, enhancementId, enhancementWeapon }) : null;
   const statsSource = presented?.stats ?? sheet.stats;
   const extraProfiles = presented?.profiles ?? sheet.profiles ?? [];
   const blocks = [
@@ -325,11 +351,12 @@ export function DatasheetView({
       base: sheet.profiles?.[index]?.stats ?? profile.stats,
     })),
   ];
-  const originals = new Map<string, WeaponProfile>([...sheet.ranged, ...sheet.melee].map((weapon) => [weapon.name, weapon]));
   const ranged = presented ? presented.ranged : sheet.ranged;
   const melee = presented ? presented.melee : sheet.melee;
   const abilities = presented ? presented.abilities : sheet.abilities;
   const selectedKit = gearLine(unitId, gear, true, models);
+  const markedKeywords = new Set([...(marks?.unitKeywords ?? [])].map((keyword) => keyword.toLowerCase()));
+  const keywordText = withMarkedKeywords(keywords?.keywords, marks?.unitKeywords ?? new Set());
 
   return (
     <div className="sheet-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/70" onClick={onClose}>
@@ -346,7 +373,9 @@ export function DatasheetView({
             <X className="size-5" />
           </button>
         </div>
-        {blocks.map((block) => {
+        {blocks.map((block, index) => {
+          const profileKey = index === 0 ? "primary" : block.name;
+          const markedStats = marks?.unit.get(profileKey);
           const rows = (
             [
               ["M", block.stats.m, block.base.m],
@@ -363,20 +392,24 @@ export function DatasheetView({
             <div key={block.name || "profile"} className="mt-3">
               {block.name ? <p className="mb-1 text-xs tracking-wide text-muted uppercase">{block.name}</p> : null}
               <dl className="flex flex-wrap gap-2">
-                {rows.map(([label, value, base]) => (
-                  <div key={label} className="rounded-lg border border-line bg-bg px-2 py-1 text-center">
-                    <dt className="text-[10px] tracking-wide text-muted uppercase">{label}</dt>
-                    <dd className={`text-sm ${presented && value !== base ? "text-modified" : ""}`}>{value}</dd>
-                  </div>
-                ))}
+                {rows.map(([label, value]) => {
+                  const stat = UNIT_STAT[label];
+                  const marked = Boolean(stat && markedStats?.has(stat));
+                  return (
+                    <div key={label} className="rounded-lg border border-line bg-bg px-2 py-1 text-center">
+                      <dt className="text-[10px] tracking-wide text-muted uppercase">{label}</dt>
+                      <dd className={`text-sm ${marked ? "text-modified" : ""}`}>{value}</dd>
+                    </div>
+                  );
+                })}
               </dl>
             </div>
           );
         })}
         <div className="mt-4 flex flex-col gap-4">
           {listOnly && selectedKit ? <p className="text-sm text-muted">{selectedKit}</p> : null}
-          <WeaponBlock title="Ranged" weapons={ranged} originals={presented ? originals : undefined} />
-          <WeaponBlock title="Melee" weapons={melee} originals={presented ? originals : undefined} />
+          <WeaponBlock title="Ranged" weapons={ranged} scope="ranged" marks={marks?.weapons} />
+          <WeaponBlock title="Melee" weapons={melee} scope="melee" marks={marks?.weapons} />
           {listOnly ? null : (
             <section>
               <h3 className="text-xs tracking-wide text-gold uppercase">Equipped</h3>
@@ -395,11 +428,11 @@ export function DatasheetView({
               ))}
             </ul>
           </section>
-          {keywords ? (
+          {keywordText ? (
             <section>
               <h3 className="text-xs tracking-wide text-gold uppercase">Keywords</h3>
-              <KeywordLine text={keywords.keywords} />
-              <p className="mt-1 text-sm text-muted">Faction: {keywords.faction}</p>
+              <KeywordLine text={keywordText} marked={markedKeywords} />
+              {keywords ? <p className="mt-1 text-sm text-muted">Faction: {keywords.faction}</p> : null}
             </section>
           ) : null}
         </div>
